@@ -2,7 +2,7 @@
 import { Search, SlidersHorizontal } from "lucide-react";
 
 import Container from "@/components/shared/Container";
-
+import ServiceGrid from "@/components/services/ServiceGrid";
 export default function ServicesPage() {
   return (
     <main className="min-h-screen bg-background">
@@ -226,59 +226,44 @@ export default function ServicesPage() {
             </aside>
 
             {/* Results */}
-            <div>
-              {/* Results Header */}
-              <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <h2 className="text-xl font-semibold tracking-tight">
-                    Available Services
-                  </h2>
+<div>
+  {/* Results Header */}
+  <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div>
+      <h2 className="text-xl font-semibold tracking-tight">
+        Available Services
+      </h2>
 
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Browse trusted professionals near you.
-                  </p>
-                </div>
+      <p className="mt-1 text-sm text-muted-foreground">
+        Browse trusted professionals near you.
+      </p>
+    </div>
 
-                <select
-                  defaultValue="recommended"
-                  className="h-10 rounded-xl border border-border bg-background px-3 text-sm outline-none focus:border-primary focus:ring-4 focus:ring-primary/10"
-                >
-                  <option value="recommended">
-                    Recommended
-                  </option>
+    <select
+      defaultValue="recommended"
+      className="h-10 rounded-xl border border-border bg-background px-3 text-sm outline-none focus:border-primary focus:ring-4 focus:ring-primary/10"
+    >
+      <option value="recommended">
+        Recommended
+      </option>
 
-                  <option value="rating">
-                    Highest Rated
-                  </option>
+      <option value="rating">
+        Highest Rated
+      </option>
 
-                  <option value="price-low">
-                    Price: Low to High
-                  </option>
+      <option value="price-low">
+        Price: Low to High
+      </option>
 
-                  <option value="price-high">
-                    Price: High to Low
-                  </option>
-                </select>
-              </div>
+      <option value="price-high">
+        Price: High to Low
+      </option>
+    </select>
+  </div>
 
-              {/* Empty State Placeholder */}
-              <div className="flex min-h-[420px] flex-col items-center justify-center rounded-3xl border border-dashed border-border bg-muted/20 px-6 text-center">
-                <div className="flex size-14 items-center justify-center rounded-2xl bg-primary/10">
-                  <Search className="size-6 text-primary" />
-                </div>
-
-                <h3 className="mt-5 text-lg font-semibold">
-                  Services are coming soon
-                </h3>
-
-                <p className="mt-2 max-w-md text-sm leading-6 text-muted-foreground">
-                  We&apos;re preparing a list of trusted home
-                  service professionals. Once connected to the
-                  FixItNow API, available services will appear
-                  here automatically.
-                </p>
-              </div>
-            </div>
+  {/* Service Grid */}
+  <ServiceGrid />
+</div>
           </div>
         </Container>
       </section>
