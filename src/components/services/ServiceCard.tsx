@@ -6,17 +6,7 @@ import {
   Star,
 } from "lucide-react";
 
-export interface Service {
-  id: string;
-  title: string;
-  description: string;
-  category: string;
-  location: string;
-  price: number;
-  rating: number;
-  reviewCount: number;
-  image: string;
-}
+import type { Service } from "@/types/service";
 
 interface ServiceCardProps {
   service: Service;

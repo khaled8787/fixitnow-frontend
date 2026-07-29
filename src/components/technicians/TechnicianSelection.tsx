@@ -10,13 +10,18 @@ import {
   Star,
 } from "lucide-react";
 
-import { useState } from "react";
 
 import { technicians } from "@/data/technicians";
+interface TechnicianSelectionProps {
+  selectedTechnicianId: string | null;
+  onSelectTechnician: (id: string) => void;
+}
 
-export default function TechnicianSelection() {
-  const [selectedTechnician, setSelectedTechnician] =
-    useState<string | null>(null);
+export default function TechnicianSelection({
+  selectedTechnicianId,
+  onSelectTechnician,
+}: TechnicianSelectionProps) {
+  
 
   return (
     <section className="mt-12 border-t border-border/60 pt-12">
@@ -46,7 +51,7 @@ export default function TechnicianSelection() {
       <div className="mt-8 grid gap-5">
         {technicians.map((technician) => {
           const isSelected =
-            selectedTechnician === technician.id;
+  selectedTechnicianId === technician.id;
 
           return (
             <div
@@ -132,7 +137,7 @@ export default function TechnicianSelection() {
                   <button
                     type="button"
                     onClick={() =>
-                      setSelectedTechnician(technician.id)
+                     onSelectTechnician(technician.id)
                     }
                     className={`flex h-11 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold transition-all duration-300 ${
                       isSelected
@@ -161,7 +166,7 @@ export default function TechnicianSelection() {
       </div>
 
       {/* Selected Technician Message */}
-      {selectedTechnician && (
+      {selectedTechnicianId && (
         <div className="mt-5 flex items-center gap-3 rounded-2xl border border-primary/20 bg-primary/5 px-4 py-3">
           <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
             <Check className="size-4" />

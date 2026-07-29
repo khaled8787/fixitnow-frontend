@@ -11,11 +11,9 @@ import {
   Star,
   Users,
 } from "lucide-react";
-import TechnicianSelection from "@/components/technicians/TechnicianSelection";
 import { services } from "@/data/services";
 import { notFound } from "next/navigation";
-import BookingFlow from "@/components/booking/BookingFlow";
-import { technicians } from "@/data/technicians";
+import ServiceDetailsClient from "@/components/services/ServiceDetailsClient";
 
 interface ServiceDetailsPageProps {
   params: Promise<{
@@ -182,11 +180,8 @@ export default async function ServiceDetailsPage({
                   ))}
                 </div>
               </div>
-              <TechnicianSelection></TechnicianSelection>
-              {/* Booking Flow */}
-<BookingFlow
-  technician={technicians[0]}
-  serviceName={service.title}
+             <ServiceDetailsClient
+  service={service}
 />
             </div>
 

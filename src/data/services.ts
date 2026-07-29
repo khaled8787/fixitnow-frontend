@@ -1,5 +1,4 @@
-import type { Service } from "@/components/services/ServiceCard";
-
+import type { Service } from "@/types/service";
 export const services: Service[] = [
   {
     id: "professional-home-cleaning",
