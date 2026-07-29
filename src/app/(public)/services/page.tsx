@@ -1,6 +1,5 @@
 
 import ServicesExplorer from "@/components/services/ServicesExplorer";
-
 export default function ServicesPage() {
   return (
     <main className="min-h-screen bg-background">
