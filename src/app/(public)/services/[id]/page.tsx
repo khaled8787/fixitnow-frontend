@@ -11,7 +11,7 @@ import {
   Star,
   Users,
 } from "lucide-react";
-
+import TechnicianSelection from "@/components/technicians/TechnicianSelection";
 import { services } from "@/data/services";
 import { notFound } from "next/navigation";
 
@@ -180,6 +180,7 @@ export default async function ServiceDetailsPage({
                   ))}
                 </div>
               </div>
+              <TechnicianSelection></TechnicianSelection>
             </div>
 
             {/* Booking Card */}
