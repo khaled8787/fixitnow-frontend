@@ -146,7 +146,7 @@ export default function MobileMenu() {
     className="rounded-2xl"
     onClick={closeMenu}
   >
-    <Link href="/auth/login">Login</Link>
+    <Link href="/login">Login</Link>
   </Button>
 
   <Button
@@ -154,7 +154,7 @@ export default function MobileMenu() {
     onClick={closeMenu}
   >
     <Link
-      href="/auth/register"
+      href="/register"
       className="flex items-center gap-1"
     >
       Get Started

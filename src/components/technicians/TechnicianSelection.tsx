@@ -135,24 +135,29 @@ export default function TechnicianSelection({
 
                   {/* Select Technician */}
                   <button
-                    type="button"
-                    onClick={() =>
-                     onSelectTechnician(technician.id)
-                    }
-                    className={`flex h-11 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold transition-all duration-300 ${
-                      isSelected
-                        ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20"
-                        : "bg-primary text-primary-foreground hover:bg-primary/90 hover:shadow-lg hover:shadow-primary/20"
-                    }`}
-                  >
-                    {isSelected && (
-                      <Check className="size-4" />
-                    )}
+  type="button"
+  disabled={!technician.isAvailable}
+  onClick={() => {
+    if (technician.isAvailable) {
+      onSelectTechnician(technician.id);
+    }
+  }}
+  className={`flex h-11 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold transition-all duration-300 ${
+    !technician.isAvailable
+      ? "cursor-not-allowed bg-muted text-muted-foreground"
+      : isSelected
+        ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20"
+        : "bg-primary text-primary-foreground hover:bg-primary/90 hover:shadow-lg hover:shadow-primary/20"
+  }`}
+>
+  {isSelected && <Check className="size-4" />}
 
-                    {isSelected
-                      ? "Selected"
-                      : "Select Technician"}
-                  </button>
+  {!technician.isAvailable
+    ? "Currently Unavailable"
+    : isSelected
+      ? "Selected"
+      : "Select Technician"}
+</button>
                 </div>
               </div>
 

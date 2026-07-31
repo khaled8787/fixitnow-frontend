@@ -1,32 +1,78 @@
+
 "use client";
 
-import { ArrowRight } from "lucide-react";
 import Link from "next/link";
+import { LogOut, UserCircle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import ThemeToggle from "./ThemeToggle";
+import ThemeToggle from "@/components/layout/ThemeToggle";
+import { useAuth } from "@/context/AuthContext";
 
 export default function NavbarActions() {
+  const {
+    user,
+    isAuthenticated,
+    isLoading,
+    logout,
+  } = useAuth();
+
   return (
-    <div className="hidden items-center gap-2 lg:flex">
+    <div className="flex items-center gap-2">
+      {/* Theme */}
       <ThemeToggle />
 
-      <Button
-        variant="ghost"
-        className="rounded-full px-5"
-      >
-        <Link href="/auth/login">Login</Link>
-      </Button>
+      {/* Auth State */}
+      {isLoading ? (
+        <div className="hidden h-9 w-24 animate-pulse rounded-full bg-muted sm:block" />
+      ) : isAuthenticated && user ? (
+        <>
+          {/* Profile */}
+          <Link href="/profile">
+            <Button
+              variant="ghost"
+              className="hidden rounded-full px-4 sm:flex"
+            >
+              <UserCircle className="mr-2 size-4" />
 
-      <Button className="group rounded-full px-5 shadow-lg shadow-primary/20">
-        <Link
-          href="/auth/register"
-          className="flex items-center gap-1"
-        >
-          Get Started
-          <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" />
-        </Link>
-      </Button>
+              <span className="max-w-[120px] truncate">
+                {user.name}
+              </span>
+            </Button>
+          </Link>
+
+          {/* Logout */}
+          <Button
+            variant="outline"
+            onClick={logout}
+            className="hidden rounded-full px-4 sm:flex"
+          >
+            <LogOut className="mr-2 size-4" />
+            Logout
+          </Button>
+        </>
+      ) : (
+        <>
+          {/* Login */}
+          <Button
+            variant="ghost"
+            className="hidden rounded-full px-5 sm:flex"
+          >
+            <Link href="/login">
+              Login
+            </Link>
+          </Button>
+
+          {/* Register */}
+          <Button className="hidden rounded-full px-5 shadow-lg shadow-primary/20 sm:flex">
+            <Link
+              href="/register"
+              className="flex items-center gap-1"
+            >
+              Get Started
+            </Link>
+          </Button>
+        </>
+      )}
     </div>
   );
 }
