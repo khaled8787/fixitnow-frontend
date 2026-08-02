@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useMemo, useState } from "react";
@@ -8,7 +9,12 @@ import {
 } from "lucide-react";
 
 import ServiceCard from "@/components/services/ServiceCard";
-import { services } from "@/data/services";
+import type { ServiceApiResponse } from "@/services/service.service";
+import type { Service } from "@/types/service";
+
+interface ServicesExplorerProps {
+  services: ServiceApiResponse[];
+}
 
 const categories = [
   "All Categories",
@@ -77,15 +83,53 @@ const sortOptions = [
   },
 ];
 
-export default function ServicesExplorer() {
+function mapService(service: ServiceApiResponse): Service {
+  return {
+    id: service.id,
+    title: service.title,
+    description: service.description ?? "",
+    price: Number(service.price ?? 0),
+    image: service.image ?? "/images/service-placeholder.jpg",
+
+    category:
+      service.category?.name ??
+      "Other",
+
+    location:
+      service.technician?.location ??
+      "Available location",
+
+    rating: 0,
+    reviewCount: 0,
+
+    technicianId:
+      service.technicianId ??
+      service.technician?.id ??
+      "",
+  };
+}
+
+export default function ServicesExplorer({
+  services: apiServices,
+}: ServicesExplorerProps) {
+  const services = useMemo(
+    () => apiServices.map(mapService),
+    [apiServices],
+  );
+
   const [searchQuery, setSearchQuery] = useState("");
+
   const [category, setCategory] =
     useState("All Categories");
+
   const [location, setLocation] = useState("");
+
   const [minimumRating, setMinimumRating] =
     useState(0);
+
   const [priceRange, setPriceRange] =
     useState("all");
+
   const [sortBy, setSortBy] =
     useState("recommended");
 
@@ -114,7 +158,8 @@ export default function ServicesExplorer() {
 
       const matchesCategory =
         category === "All Categories" ||
-        service.category === category;
+        service.category.toLowerCase() ===
+          category.toLowerCase();
 
       const matchesLocation =
         !normalizedLocation ||
@@ -160,6 +205,7 @@ export default function ServicesExplorer() {
       return b.rating - a.rating;
     });
   }, [
+    services,
     searchQuery,
     category,
     location,
@@ -214,6 +260,7 @@ export default function ServicesExplorer() {
 
           <button
             type="button"
+            onClick={() => undefined}
             className="hidden h-10 rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 sm:block"
           >
             Search

@@ -1,6 +1,20 @@
 
 import ServicesExplorer from "@/components/services/ServicesExplorer";
-export default function ServicesPage() {
+import { getServices } from "@/services/service.service";
+
+export default async function ServicesPage() {
+  let services = [];
+
+  try {
+    const response = await getServices();
+
+    services = Array.isArray(response?.data)
+      ? response.data
+      : [];
+  } catch (error) {
+    console.error("SERVICES PAGE API ERROR:", error);
+  }
+
   return (
     <main className="min-h-screen bg-background">
       {/* Page Header */}
@@ -31,7 +45,7 @@ export default function ServicesPage() {
       </section>
 
       {/* Services Explorer */}
-      <ServicesExplorer />
+      <ServicesExplorer services={services} />
     </main>
   );
 }

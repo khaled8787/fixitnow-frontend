@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { usePathname } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
 
-const navItems = [
+const publicNavItems = [
   {
     label: "Home",
     href: "/",
@@ -25,6 +26,38 @@ const navItems = [
 
 export default function NavLinks() {
   const pathname = usePathname();
+  const { isAuthenticated, isLoading } = useAuth();
+
+  const navItems = [
+    ...publicNavItems,
+    ...(isAuthenticated
+      ? [
+          {
+            label: "Dashboard",
+            href: "/dashboard",
+          },
+        ]
+      : []),
+  ];
+
+  if (isLoading) {
+    return (
+      <nav
+        aria-label="Main navigation"
+        className="hidden items-center gap-1 lg:flex"
+      >
+        {publicNavItems.map((item) => (
+          <Link
+            key={item.href}
+            href={item.href}
+            className="relative rounded-full px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+          >
+            {item.label}
+          </Link>
+        ))}
+      </nav>
+    );
+  }
 
   return (
     <nav
@@ -35,7 +68,8 @@ export default function NavLinks() {
         const isActive =
           item.href === "/"
             ? pathname === "/"
-            : pathname.startsWith(item.href);
+            : pathname === item.href ||
+              pathname.startsWith(`${item.href}/`);
 
         return (
           <Link
@@ -55,7 +89,11 @@ export default function NavLinks() {
               />
             )}
 
-            <span className={isActive ? "text-foreground" : undefined}>
+            <span
+              className={
+                isActive ? "text-foreground" : undefined
+              }
+            >
               {item.label}
             </span>
           </Link>

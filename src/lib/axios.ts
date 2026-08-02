@@ -1,12 +1,11 @@
 
 import axios from "axios";
-
 import { getAccessToken } from "@/lib/auth";
 
 const api = axios.create({
   baseURL:
     process.env.NEXT_PUBLIC_API_URL ||
-    "http://localhost:5000",
+    "https://fixitnow-backend-gz17.onrender.com",
   headers: {
     "Content-Type": "application/json",
   },
@@ -30,9 +29,11 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
-      // Token invalid/expired হলে এখান থেকে
-      // পরবর্তীতে logout handling করব.
+    if (error?.response?.status === 401) {
+      console.error("AUTHENTICATION ERROR:", {
+        url: error?.config?.url,
+        message: error?.response?.data,
+      });
     }
 
     return Promise.reject(error);

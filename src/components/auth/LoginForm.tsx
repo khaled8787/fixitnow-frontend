@@ -13,14 +13,16 @@ import {
   ShieldCheck,
   Sparkles,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+
 import { useAuth } from "@/context/AuthContext";
 import { loginUser } from "@/services/auth.service";
+
 import {
   loginSchema,
   type LoginFormValues,
@@ -28,47 +30,81 @@ import {
 
 export default function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
+
   const router = useRouter();
+
   const { setAuthenticatedUser } = useAuth();
+
   const {
     register,
     handleSubmit,
-    formState: { errors, isSubmitting },
+    formState: {
+      errors,
+      isSubmitting,
+    },
   } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
+
     defaultValues: {
       email: "",
       password: "",
     },
   });
 
- 
-async function onSubmit(data: LoginFormValues) {
-  try {
-    const response = await loginUser({
-      email: data.email,
-      password: data.password,
-    });
+  const onSubmit = async (
+    data: LoginFormValues,
+  ) => {
+    try {
+      const response = await loginUser({
+        email: data.email,
+        password: data.password,
+      });
 
-    const user = response?.data?.user;
+      const user = response?.data?.user;
 
-    if (user) {
+      if (!user) {
+        throw new Error(
+          "Login succeeded but user information was not returned.",
+        );
+      }
+
+      /*
+       * Update AuthContext immediately.
+       *
+       * AuthContext should also persist/read the JWT
+       * from your existing auth service/token utility.
+       */
       setAuthenticatedUser(user);
+
+      toast.success(
+        response?.message || "Login successful!",
+      );
+
+      /*
+       * Send every authenticated user to dashboard.
+       */
+      router.replace("/dashboard");
+
+      router.refresh();
+    } catch (error: unknown) {
+      console.error("LOGIN ERROR:", error);
+
+      const axiosError = error as {
+        response?: {
+          data?: {
+            message?: string;
+          };
+        };
+        message?: string;
+      };
+
+      toast.error(
+        axiosError?.response?.data?.message ||
+          axiosError?.message ||
+          "Login failed. Please check your credentials.",
+      );
     }
-
-    toast.success(
-      response.message || "Login successful!",
-    );
-
-    router.push("/");
-  } catch (error: any) {
-    toast.error(
-      error?.response?.data?.message ||
-        "Login failed. Please check your credentials.",
-    );
-  }
-}
-
+  };
 
   return (
     <div className="relative">
@@ -97,13 +133,17 @@ async function onSubmit(data: LoginFormValues) {
           <div>
             <h1 className="text-3xl font-bold tracking-[-0.045em] sm:text-4xl">
               Let&apos;s get
-              <span className="text-primary"> things </span>
+              <span className="text-primary">
+                {" "}
+                things{" "}
+              </span>
               fixed.
             </h1>
 
             <p className="mt-3 max-w-sm text-sm leading-6 text-muted-foreground">
-              Sign in to manage your bookings, connect with
-              professionals, and keep everything on track.
+              Sign in to manage your bookings, connect
+              with professionals, and keep everything on
+              track.
             </p>
           </div>
 
@@ -170,11 +210,17 @@ async function onSubmit(data: LoginFormValues) {
 
                 <Input
                   id="login-password"
-                  type={showPassword ? "text" : "password"}
+                  type={
+                    showPassword
+                      ? "text"
+                      : "password"
+                  }
                   autoComplete="current-password"
                   placeholder="Enter your password"
                   {...register("password")}
-                  aria-invalid={Boolean(errors.password)}
+                  aria-invalid={Boolean(
+                    errors.password,
+                  )}
                   className={`h-12 rounded-xl border-border/70 bg-muted/20 pl-10 pr-11 transition-all placeholder:text-muted-foreground/50 focus:bg-background ${
                     errors.password
                       ? "border-destructive focus-visible:ring-destructive/20"
@@ -185,7 +231,9 @@ async function onSubmit(data: LoginFormValues) {
                 <button
                   type="button"
                   onClick={() =>
-                    setShowPassword((current) => !current)
+                    setShowPassword(
+                      (current) => !current,
+                    )
                   }
                   className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
                   aria-label={
@@ -252,7 +300,8 @@ async function onSubmit(data: LoginFormValues) {
           <div className="mt-6 flex items-center justify-center gap-2 text-[11px] text-muted-foreground">
             <ShieldCheck className="size-3.5 text-primary" />
 
-            Your account is protected by secure authentication
+            Your account is protected by secure
+            authentication
           </div>
         </div>
       </div>

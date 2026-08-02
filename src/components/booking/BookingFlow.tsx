@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useMemo, useState } from "react";
@@ -6,41 +7,46 @@ import {
   Check,
   CheckCircle2,
   Clock3,
+  Loader2,
   MapPin,
   ShieldCheck,
   UserRound,
+  FileText,
 } from "lucide-react";
+import { toast } from "sonner";
 
 import { timeSlots } from "@/data/availability";
 import type { TimeSlot } from "@/types/booking";
 import type { Technician } from "@/types/technician";
+import { createBooking } from "@/services/booking.service";
 
 interface BookingFlowProps {
   technician: Technician;
+  serviceId: string;
   serviceName?: string;
 }
 
 export default function BookingFlow({
   technician,
+  serviceId,
   serviceName,
 }: BookingFlowProps) {
-  const [selectedDate, setSelectedDate] =
-    useState("");
-
+  const [selectedDate, setSelectedDate] = useState("");
   const [selectedSlot, setSelectedSlot] =
     useState<TimeSlot | null>(null);
 
-  const [isConfirmed, setIsConfirmed] =
-    useState(false);
+  const [address, setAddress] = useState("");
+  const [notes, setNotes] = useState("");
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isConfirmed, setIsConfirmed] = useState(false);
 
   const formattedDate = useMemo(() => {
     if (!selectedDate) {
       return "";
     }
 
-    const date = new Date(
-      `${selectedDate}T00:00:00`,
-    );
+    const date = new Date(`${selectedDate}T00:00:00`);
 
     return date.toLocaleDateString("en-US", {
       weekday: "long",
@@ -52,14 +58,114 @@ export default function BookingFlow({
 
   const canConfirm =
     Boolean(selectedDate) &&
-    Boolean(selectedSlot);
+    Boolean(selectedSlot) &&
+    Boolean(address.trim()) &&
+    !isSubmitting;
 
-  function handleConfirmBooking() {
-    if (!canConfirm) {
+  async function handleConfirmBooking() {
+    if (!selectedDate) {
+      toast.error("Please select a booking date.");
       return;
     }
 
-    setIsConfirmed(true);
+    if (!selectedSlot) {
+      toast.error("Please select a time slot.");
+      return;
+    }
+
+    if (!address.trim()) {
+      toast.error("Please enter your service address.");
+      return;
+    }
+
+    if (!serviceId) {
+      toast.error("Service information is missing.");
+      return;
+    }
+
+    if (!technician.id) {
+      toast.error("Technician information is missing.");
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+
+      /*
+       * Backend expects:
+       *
+       * {
+       *   technicianId,
+       *   serviceId,
+       *   bookingDate,
+       *   bookingTime,
+       *   address,
+       *   notes
+       * }
+       */
+
+      function toISODateTime(date: string, time: string) {
+  const [timePart, modifier] = time.split(" ");
+
+  let [hours, minutes] = timePart.split(":").map(Number);
+
+  if (modifier === "PM" && hours !== 12) {
+    hours += 12;
+  }
+
+  if (modifier === "AM" && hours === 12) {
+    hours = 0;
+  }
+
+  const dateTime = new Date(`${date}T00:00:00`);
+
+  dateTime.setHours(hours, minutes, 0, 0);
+
+  return dateTime.toISOString();
+}
+
+      const payload = {
+  technicianId: technician.id,
+  serviceId,
+  bookingDate: new Date(
+    `${selectedDate}T00:00:00`,
+  ).toISOString(),
+
+  bookingTime: toISODateTime(
+    selectedDate,
+    selectedSlot.startTime,
+  ),
+
+  address: address.trim(),
+  notes: notes.trim() || undefined,
+};
+
+      await createBooking(payload);
+
+      toast.success("Booking request submitted successfully!", {
+        description:
+          "The technician will review your booking request.",
+      });
+
+      setIsConfirmed(true);
+    } catch (error: any) {
+      console.error("BOOKING ERROR:", error);
+
+      const message =
+        error?.response?.data?.message ||
+        error?.response?.data?.errorDetails ||
+        error?.message ||
+        "Failed to create booking. Please try again.";
+
+      toast.error("Booking failed", {
+        description:
+          typeof message === "string"
+            ? message
+            : "Something went wrong while creating your booking.",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   if (isConfirmed) {
@@ -71,13 +177,13 @@ export default function BookingFlow({
           </div>
 
           <h2 className="mt-6 text-2xl font-bold tracking-tight sm:text-3xl">
-            Booking request ready!
+            Booking request submitted!
           </h2>
 
           <p className="mt-3 max-w-lg text-sm leading-7 text-muted-foreground sm:text-base">
-            Your booking request has been prepared successfully.
-            Once the technician accepts your request, you can
-            continue to the secure payment process.
+            Your booking request has been successfully sent to
+            the technician. You can check your booking status from
+            your account.
           </p>
 
           <div className="mt-8 w-full max-w-md rounded-2xl border border-border/60 bg-background p-5 text-left">
@@ -94,6 +200,22 @@ export default function BookingFlow({
                 </p>
               </div>
             </div>
+
+            {serviceName && (
+              <div className="mt-5 flex items-center gap-3">
+                <ShieldCheck className="size-5 text-primary" />
+
+                <div>
+                  <p className="text-xs text-muted-foreground">
+                    Service
+                  </p>
+
+                  <p className="mt-1 text-sm font-semibold">
+                    {serviceName}
+                  </p>
+                </div>
+              </div>
+            )}
 
             <div className="mt-5 flex items-center gap-3">
               <CalendarDays className="size-5 text-primary" />
@@ -125,6 +247,20 @@ export default function BookingFlow({
                 </div>
               </div>
             )}
+
+            <div className="mt-5 flex items-start gap-3">
+              <MapPin className="mt-0.5 size-5 shrink-0 text-primary" />
+
+              <div>
+                <p className="text-xs text-muted-foreground">
+                  Service address
+                </p>
+
+                <p className="mt-1 text-sm font-semibold leading-6">
+                  {address}
+                </p>
+              </div>
+            </div>
           </div>
 
           <button
@@ -154,7 +290,8 @@ export default function BookingFlow({
             </h2>
 
             <p className="mt-1 text-sm leading-6 text-muted-foreground">
-              Choose a convenient date and available time slot.
+              Choose a date, time, address, and any additional
+              instructions.
             </p>
           </div>
         </div>
@@ -200,16 +337,14 @@ export default function BookingFlow({
 
         {/* Date Selection */}
         <div className="mt-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="font-semibold">
-                1. Select a date
-              </h3>
+          <div>
+            <h3 className="font-semibold">
+              1. Select a date
+            </h3>
 
-              <p className="mt-1 text-xs text-muted-foreground">
-                Choose your preferred appointment date.
-              </p>
-            </div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Choose your preferred appointment date.
+            </p>
           </div>
 
           <div className="relative mt-4 max-w-md">
@@ -255,14 +390,14 @@ export default function BookingFlow({
                   type="button"
                   disabled={
                     !selectedDate ||
-                    !slot.isAvailable
+                    !slot.isAvailable ||
+                    isSubmitting
                   }
-                  onClick={() =>
-                    setSelectedSlot(slot)
-                  }
+                  onClick={() => setSelectedSlot(slot)}
                   className={`relative rounded-xl border px-3 py-3 text-left transition-all duration-300 ${
                     !selectedDate ||
-                    !slot.isAvailable
+                    !slot.isAvailable ||
+                    isSubmitting
                       ? "cursor-not-allowed border-border/40 bg-muted/30 opacity-50"
                       : isSelected
                         ? "border-primary bg-primary/5 text-primary shadow-sm"
@@ -302,6 +437,80 @@ export default function BookingFlow({
           </div>
         </div>
 
+        {/* Address */}
+        <div className="mt-8">
+          <div>
+            <h3 className="font-semibold">
+              3. Service address
+            </h3>
+
+            <p className="mt-1 text-xs text-muted-foreground">
+              Where should the technician provide the service?
+            </p>
+          </div>
+
+          <div className="relative mt-4">
+            <MapPin className="pointer-events-none absolute left-4 top-4 size-4 text-muted-foreground" />
+
+            <textarea
+              value={address}
+              onChange={(event) =>
+                setAddress(event.target.value)
+              }
+              placeholder="House/Road, Area, City..."
+              rows={3}
+              maxLength={500}
+              disabled={isSubmitting}
+              className="w-full resize-none rounded-xl border border-border bg-background px-11 py-3 text-sm outline-none transition-all placeholder:text-muted-foreground/50 focus:border-primary focus:ring-4 focus:ring-primary/10 disabled:cursor-not-allowed disabled:opacity-60"
+            />
+          </div>
+
+          <div className="mt-1 flex justify-end">
+            <span className="text-[10px] text-muted-foreground">
+              {address.length}/500
+            </span>
+          </div>
+        </div>
+
+        {/* Notes */}
+        <div className="mt-7">
+          <div>
+            <h3 className="font-semibold">
+              4. Additional notes
+              <span className="ml-2 text-xs font-normal text-muted-foreground">
+                Optional
+              </span>
+            </h3>
+
+            <p className="mt-1 text-xs text-muted-foreground">
+              Tell the technician anything important about the
+              service.
+            </p>
+          </div>
+
+          <div className="relative mt-4">
+            <FileText className="pointer-events-none absolute left-4 top-4 size-4 text-muted-foreground" />
+
+            <textarea
+              value={notes}
+              onChange={(event) =>
+                setNotes(event.target.value)
+              }
+              placeholder="Example: The AC is making a loud noise..."
+              rows={4}
+              maxLength={1000}
+              disabled={isSubmitting}
+              className="w-full resize-none rounded-xl border border-border bg-background px-11 py-3 text-sm outline-none transition-all placeholder:text-muted-foreground/50 focus:border-primary focus:ring-4 focus:ring-primary/10 disabled:cursor-not-allowed disabled:opacity-60"
+            />
+          </div>
+
+          <div className="mt-1 flex justify-end">
+            <span className="text-[10px] text-muted-foreground">
+              {notes.length}/1000
+            </span>
+          </div>
+        </div>
+
         {/* Booking Summary */}
         <div className="mt-8 rounded-2xl border border-border/60 bg-muted/20 p-5">
           <h3 className="font-semibold">
@@ -323,9 +532,7 @@ export default function BookingFlow({
 
             <SummaryRow
               label="Date"
-              value={
-                formattedDate || "Not selected"
-              }
+              value={formattedDate || "Not selected"}
             />
 
             <SummaryRow
@@ -334,6 +541,20 @@ export default function BookingFlow({
                 selectedSlot
                   ? `${selectedSlot.startTime} - ${selectedSlot.endTime}`
                   : "Not selected"
+              }
+            />
+
+            <SummaryRow
+              label="Address"
+              value={
+                address.trim() || "Not provided"
+              }
+            />
+
+            <SummaryRow
+              label="Notes"
+              value={
+                notes.trim() || "No additional notes"
               }
             />
           </div>
@@ -350,9 +571,17 @@ export default function BookingFlow({
               : "cursor-not-allowed bg-muted text-muted-foreground"
           }`}
         >
-          <CheckCircle2 className="size-4" />
-
-          Confirm Booking Request
+          {isSubmitting ? (
+            <>
+              <Loader2 className="size-4 animate-spin" />
+              Sending booking request...
+            </>
+          ) : (
+            <>
+              <CheckCircle2 className="size-4" />
+              Confirm Booking Request
+            </>
+          )}
         </button>
 
         <p className="mt-4 text-center text-xs leading-5 text-muted-foreground">
@@ -379,7 +608,7 @@ function SummaryRow({
         {label}
       </span>
 
-      <span className="text-right text-sm font-medium">
+      <span className="max-w-[65%] text-right text-sm font-medium">
         {value}
       </span>
     </div>

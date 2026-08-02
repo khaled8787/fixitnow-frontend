@@ -1,3 +1,4 @@
+
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -11,9 +12,15 @@ import {
   Star,
   Users,
 } from "lucide-react";
-import { services } from "@/data/services";
 import { notFound } from "next/navigation";
+
 import ServiceDetailsClient from "@/components/services/ServiceDetailsClient";
+import {
+  getServiceById,
+  type ServiceApiResponse,
+} from "@/services/service.service";
+
+import type { Service } from "@/types/service";
 
 interface ServiceDetailsPageProps {
   params: Promise<{
@@ -21,18 +28,81 @@ interface ServiceDetailsPageProps {
   }>;
 }
 
+function mapService(
+  service: ServiceApiResponse,
+): Service {
+  return {
+    id: service.id,
+
+    title: service.title,
+
+    description:
+      service.description ??
+      "Professional and reliable service from a trusted FixItNow technician.",
+
+    price: Number(service.price ?? 0),
+
+    image:
+      service.image ??
+      "/images/service-placeholder.jpg",
+
+    /*
+     * These fields may not currently exist
+     * in the backend Service model.
+     *
+     * Safe defaults keep the existing UI working.
+     */
+    category:
+      service.category?.name ??
+      "Home Service",
+
+    location:
+      service.technician?.location ??
+      "Available in your area",
+
+    rating: 0,
+
+    reviewCount: 0,
+  };
+}
+
 export default async function ServiceDetailsPage({
   params,
 }: ServiceDetailsPageProps) {
   const { id } = await params;
 
-  const service = services.find(
-    (item) => item.id === id,
-  );
+  let response;
 
-  if (!service) {
+  try {
+    response = await getServiceById(id);
+  } catch (error) {
+    console.error(
+      "SERVICE DETAILS API ERROR:",
+      error,
+    );
+
     notFound();
   }
+
+  /*
+   * Backend response structure:
+   *
+   * {
+   *   success: true,
+   *   message: "...",
+   *   data: {...}
+   * }
+   */
+  const backendService =
+    response?.data as
+      | ServiceApiResponse
+      | undefined;
+
+  if (!backendService) {
+    notFound();
+  }
+
+  const service = mapService(backendService);
 
   return (
     <main className="min-h-screen bg-background">
@@ -135,19 +205,21 @@ export default async function ServiceDetailsPage({
 
                 <div className="mt-5 space-y-4 text-sm leading-7 text-muted-foreground sm:text-base">
                   <p>
-                    Our professional {service.category.toLowerCase()}{" "}
-                    service is designed to make your life easier.
-                    Whether you need a quick fix or a complete
-                    service, our trusted professionals are ready
-                    to help.
+                    Our professional{" "}
+                    {service.category.toLowerCase()}{" "}
+                    service is designed to make your life
+                    easier. Whether you need a quick fix or
+                    a complete service, our trusted
+                    professionals are ready to help.
                   </p>
 
                   <p>
-                    Every professional on FixItNow is selected
-                    based on quality, reliability, and customer
-                    satisfaction. You can choose the right
-                    technician based on their skills, ratings,
-                    experience, and availability.
+                    Every professional on FixItNow is
+                    selected based on quality, reliability,
+                    and customer satisfaction. You can
+                    choose the right technician based on
+                    their skills, ratings, experience, and
+                    availability.
                   </p>
                 </div>
               </div>
@@ -180,9 +252,11 @@ export default async function ServiceDetailsPage({
                   ))}
                 </div>
               </div>
-             <ServiceDetailsClient
-  service={service}
-/>
+
+              {/* Backend Technicians + Booking */}
+              <ServiceDetailsClient
+                service={service}
+              />
             </div>
 
             {/* Booking Card */}
@@ -218,89 +292,58 @@ export default async function ServiceDetailsPage({
                   </h2>
 
                   <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                    Select a trusted professional and choose a
-                    convenient time for your service.
+                    Select a trusted professional and
+                    choose a convenient time for your
+                    service.
                   </p>
 
-                  {/* Date */}
-                  <div className="mt-6">
-                    <label
-                      htmlFor="booking-date"
-                      className="text-sm font-medium"
-                    >
-                      Preferred date
-                    </label>
+                  {/* Informational Date */}
+                  <div className="mt-6 flex items-center gap-3 rounded-2xl border border-primary/10 bg-primary/5 p-4">
+                    <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                      <CalendarDays className="size-5" />
+                    </div>
 
-                    <div className="relative mt-2">
-                      <CalendarDays className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                    <div>
+                      <p className="text-sm font-semibold">
+                        Flexible scheduling
+                      </p>
 
-                      <input
-                        id="booking-date"
-                        type="date"
-                        className="h-12 w-full rounded-xl border border-border bg-background pl-10 pr-3 text-sm outline-none transition-all focus:border-primary focus:ring-4 focus:ring-primary/10"
-                      />
+                      <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                        Select your exact date and time
+                        after choosing a technician below.
+                      </p>
                     </div>
                   </div>
 
-                  {/* Time */}
-                  <div className="mt-5">
-                    <label
-                      htmlFor="booking-time"
-                      className="text-sm font-medium"
-                    >
-                      Preferred time
-                    </label>
+                  {/* Informational Time */}
+                  <div className="mt-4 flex items-center gap-3 rounded-2xl border border-border/60 bg-muted/20 p-4">
+                    <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-muted text-muted-foreground">
+                      <Clock3 className="size-5" />
+                    </div>
 
-                    <div className="relative mt-2">
-                      <Clock3 className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                    <div>
+                      <p className="text-sm font-semibold">
+                        Available time slots
+                      </p>
 
-                      <select
-                        id="booking-time"
-                        defaultValue=""
-                        className="h-12 w-full appearance-none rounded-xl border border-border bg-background pl-10 pr-3 text-sm outline-none transition-all focus:border-primary focus:ring-4 focus:ring-primary/10"
-                      >
-                        <option value="" disabled>
-                          Select a time slot
-                        </option>
-
-                        <option value="09:00">
-                          09:00 AM - 10:00 AM
-                        </option>
-
-                        <option value="10:00">
-                          10:00 AM - 11:00 AM
-                        </option>
-
-                        <option value="11:00">
-                          11:00 AM - 12:00 PM
-                        </option>
-
-                        <option value="14:00">
-                          02:00 PM - 03:00 PM
-                        </option>
-
-                        <option value="15:00">
-                          03:00 PM - 04:00 PM
-                        </option>
-
-                        <option value="16:00">
-                          04:00 PM - 05:00 PM
-                        </option>
-                      </select>
+                      <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                        Time availability is handled in
+                        the booking section below.
+                      </p>
                     </div>
                   </div>
 
                   {/* CTA */}
-                  <button
-                    type="button"
+                  <a
+                    href="#technician-booking"
                     className="mt-6 flex h-12 w-full items-center justify-center rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition-all duration-300 hover:-translate-y-0.5 hover:bg-primary/90 hover:shadow-xl hover:shadow-primary/25"
                   >
-                    Book a Technician
-                  </button>
+                    Choose a Technician
+                  </a>
 
                   <p className="mt-4 text-center text-xs leading-5 text-muted-foreground">
-                    You won&apos;t be charged until your booking
-                    is accepted by a technician.
+                    You won&apos;t be charged until your
+                    booking is accepted by a technician.
                   </p>
                 </div>
               </div>

@@ -1,3 +1,4 @@
+
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -6,15 +7,31 @@ import {
   Star,
 } from "lucide-react";
 
-import type { Service } from "@/types/service";
+import type { ServiceApiResponse } from "@/services/service.service";
 
 interface ServiceCardProps {
-  service: Service;
+  service: ServiceApiResponse;
 }
 
 export default function ServiceCard({
   service,
 }: ServiceCardProps) {
+  const categoryName =
+    typeof service.category === "object" &&
+    service.category !== null
+      ? service.category.name
+      : "Service";
+
+  const price = Number(service.price ?? 0);
+
+  const image =
+    service.image ||
+    (typeof service.category === "object" &&
+    service.category !== null
+      ? service.category.image
+      : null) ||
+    "/images/service-placeholder.jpg";
+
   return (
     <article className="group overflow-hidden rounded-3xl border border-border/60 bg-background transition-all duration-500 hover:-translate-y-1 hover:border-primary/20 hover:shadow-xl hover:shadow-primary/5">
       {/* Image */}
@@ -23,7 +40,7 @@ export default function ServiceCard({
         className="relative block aspect-[16/10] overflow-hidden"
       >
         <Image
-          src={service.image}
+          src={image}
           alt={service.title}
           fill
           className="object-cover transition-transform duration-700 group-hover:scale-105"
@@ -36,7 +53,7 @@ export default function ServiceCard({
         {/* Category */}
         <div className="absolute left-4 top-4">
           <span className="rounded-full border border-white/20 bg-black/30 px-3 py-1.5 text-xs font-medium text-white backdrop-blur-md">
-            {service.category}
+            {categoryName}
           </span>
         </div>
 
@@ -56,11 +73,13 @@ export default function ServiceCard({
               </h3>
             </Link>
 
+            {/* Location */}
             <div className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
               <MapPin className="size-3.5 shrink-0" />
 
               <span className="truncate">
-                {service.location}
+                {service.technician?.location ||
+                  "Available nationwide"}
               </span>
             </div>
           </div>
@@ -69,12 +88,14 @@ export default function ServiceCard({
           <div className="flex shrink-0 items-center gap-1 rounded-full bg-amber-500/10 px-2.5 py-1 text-xs font-semibold text-amber-600 dark:text-amber-400">
             <Star className="size-3.5 fill-current" />
 
-            {service.rating.toFixed(1)}
+            <span>New</span>
           </div>
         </div>
 
+        {/* Description */}
         <p className="mt-4 line-clamp-2 text-sm leading-6 text-muted-foreground">
-          {service.description}
+          {service.description ||
+            "Professional service from a trusted FixItNow technician."}
         </p>
 
         {/* Bottom */}
@@ -85,12 +106,16 @@ export default function ServiceCard({
             </span>
 
             <p className="mt-0.5 text-lg font-bold">
-              ${service.price}
+              ${price.toFixed(2)}
             </p>
           </div>
 
           <span className="text-xs text-muted-foreground">
-            {service.reviewCount} reviews
+            {service.technician
+              ? service.technician.isAvailable
+                ? "Available now"
+                : "Currently unavailable"
+              : "Professional service"}
           </span>
         </div>
       </div>

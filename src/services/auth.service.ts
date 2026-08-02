@@ -1,5 +1,7 @@
+
 import api from "@/lib/axios";
 import { setAccessToken } from "@/lib/auth";
+
 export interface RegisterPayload {
   name: string;
   email: string;
@@ -33,12 +35,26 @@ export async function loginUser(
     payload,
   );
 
-  const accessToken =
-    response.data?.data?.accessToken;
+  console.log("🔐 LOGIN RESPONSE:", response.data);
 
-  if (accessToken) {
-    setAccessToken(accessToken);
+  const accessToken =
+    response.data?.data?.accessToken ||
+    response.data?.accessToken;
+
+  if (!accessToken) {
+    console.error(
+      "❌ Access token not found in login response:",
+      response.data,
+    );
+
+    throw new Error(
+      "Access token was not returned by the server.",
+    );
   }
+
+  setAccessToken(accessToken);
+
+  console.log("✅ Access token saved successfully");
 
   return response.data;
 }
