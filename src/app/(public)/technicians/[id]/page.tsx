@@ -1,484 +1,452 @@
-import Image from "next/image";
 import Link from "next/link";
 import {
   ArrowLeft,
-  ArrowRight,
-  Award,
   BriefcaseBusiness,
-  CalendarDays,
   CheckCircle2,
-  Clock3,
-  Heart,
+  Mail,
   MapPin,
-  ShieldCheck,
+  Phone,
   Star,
-  ThumbsUp,
+  User,
+  Wrench,
+  XCircle,
 } from "lucide-react";
-import { notFound } from "next/navigation";
-import { technicians } from "@/data/technicians";
 
-interface TechnicianProfilePageProps {
-  params: Promise<{
-    id: string;
-  }>;
+interface TechnicianUser {
+  id: string;
+  name: string;
+  email: string;
+  phone?: string | null;
+  image?: string | null;
+}
+
+interface TechnicianService {
+  id: string;
+  title: string;
+  price?: string | number;
+  description?: string | null;
+}
+
+interface Technician {
+  id: string;
+  userId: string;
+  bio?: string | null;
+  location?: string | null;
+  experience?: number | null;
+  skills?: string[] | null;
+  isAvailable: boolean;
+  rating?: number | string | null;
+  totalReviews?: number | null;
+  user?: TechnicianUser | null;
+  services?: TechnicianService[];
+}
+
+interface ApiResponse<T> {
+  success?: boolean;
+  message?: string;
+  data?: T;
+}
+
+async function getTechnician(id: string): Promise<Technician | null> {
+  const baseUrl =
+    process.env.NEXT_PUBLIC_API_URL ||
+    "http://localhost:5000";
+
+  try {
+    const response = await fetch(
+      `${baseUrl}/api/api/technicians/${id}`,
+      {
+        method: "GET",
+        cache: "no-store",
+      },
+    );
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const result: ApiResponse<Technician> =
+      await response.json();
+
+    return result.data ?? null;
+  } catch (error) {
+    console.error("GET TECHNICIAN ERROR:", error);
+    return null;
+  }
+}
+
+function formatRating(
+  rating?: number | string | null,
+) {
+  if (
+    rating === null ||
+    rating === undefined ||
+    !Number.isFinite(Number(rating))
+  ) {
+    return "New";
+  }
+
+  return Number(rating).toFixed(1);
 }
 
 export default async function TechnicianProfilePage({
   params,
-}: TechnicianProfilePageProps) {
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const { id } = await params;
 
-  const technician = technicians.find(
-    (item) => item.id === id,
-  );
+  const technician = await getTechnician(id);
 
   if (!technician) {
-    notFound();
+    return (
+      <main className="min-h-screen bg-background">
+        <section className="mx-auto flex min-h-[70vh] w-full max-w-3xl flex-col items-center justify-center px-4 text-center sm:px-6">
+          <div className="flex size-16 items-center justify-center rounded-2xl bg-destructive/10 text-destructive">
+            <User className="size-8" />
+          </div>
+
+          <h1 className="mt-6 text-2xl font-bold">
+            Technician Not Found
+          </h1>
+
+          <p className="mt-2 max-w-md text-sm leading-6 text-muted-foreground">
+            The technician you're looking for doesn't exist
+            or is no longer available.
+          </p>
+
+          <Link
+            href="/technicians"
+            className="mt-6 inline-flex h-11 items-center gap-2 rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+          >
+            <ArrowLeft className="size-4" />
+            Back to Technicians
+          </Link>
+        </section>
+      </main>
+    );
   }
+
+  const user = technician.user;
+
+  const rating =
+    technician.rating !== null &&
+    technician.rating !== undefined
+      ? Number(technician.rating)
+      : null;
+
+  const skills = Array.isArray(technician.skills)
+    ? technician.skills
+    : [];
+
+  const services = Array.isArray(technician.services)
+    ? technician.services
+    : [];
 
   return (
     <main className="min-h-screen bg-background">
-      {/* Top Navigation */}
-      <section className="border-b border-border/60">
-        <div className="mx-auto w-full max-w-[1600px] px-4 py-5 sm:px-6 lg:px-8 2xl:px-10">
-          <Link
-            href="/services"
-            className="group inline-flex items-center gap-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-          >
-            <ArrowLeft className="size-4 transition-transform duration-300 group-hover:-translate-x-1" />
-
-            Back to services
-          </Link>
+      <section className="relative overflow-hidden border-b border-border/60 bg-muted/20">
+        <div className="pointer-events-none absolute inset-0">
+          <div className="absolute left-1/2 top-0 h-80 w-80 -translate-x-1/2 rounded-full bg-primary/10 blur-3xl" />
+          <div className="absolute -left-24 bottom-0 h-64 w-64 rounded-full bg-primary/5 blur-3xl" />
+          <div className="absolute -right-24 top-10 h-72 w-72 rounded-full bg-primary/5 blur-3xl" />
         </div>
-      </section>
 
-      {/* Profile Hero */}
-      <section className="border-b border-border/60 bg-muted/20">
-        <div className="mx-auto w-full max-w-[1600px] px-4 py-10 sm:px-6 sm:py-14 lg:px-8 lg:py-20 2xl:px-10">
-          <div className="grid gap-8 lg:grid-cols-[280px_minmax(0,1fr)] lg:items-center xl:grid-cols-[340px_minmax(0,1fr)] xl:gap-12">
-            {/* Profile Image */}
-            <div className="relative mx-auto aspect-square w-full max-w-[340px] overflow-hidden rounded-[2rem] border border-border/60 bg-muted shadow-2xl shadow-black/5">
-              <Image
-                src={technician.image}
-                alt={technician.name}
-                fill
-                priority
-                className="object-cover"
-                sizes="(max-width: 1024px) 90vw, 340px"
-              />
+        <div className="relative mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 lg:px-8 lg:py-14">
+          <Link
+            href="/technicians"
+            className="inline-flex items-center gap-2 rounded-xl border border-border bg-background px-4 py-2 text-sm font-semibold transition-colors hover:bg-muted"
+          >
+            <ArrowLeft className="size-4" />
+            Back to Technicians
+          </Link>
 
-              <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent" />
+          <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_auto] lg:items-center">
+            <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
+              <div className="flex size-28 shrink-0 items-center justify-center overflow-hidden rounded-3xl bg-primary/10 text-primary ring-8 ring-background shadow-xl">
+                {user?.image ? (
+                  <img
+                    src={user.image}
+                    alt={user.name || "Technician"}
+                    className="size-full object-cover"
+                  />
+                ) : (
+                  <User className="size-12" />
+                )}
+              </div>
 
-              {technician.isAvailable && (
-                <div className="absolute bottom-5 left-5">
-                  <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-emerald-500/80 px-4 py-2 text-xs font-semibold text-white shadow-lg backdrop-blur-md">
-                    <span className="size-2 rounded-full bg-white" />
+              <div>
+                <div className="flex flex-wrap items-center gap-3">
+                  <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
+                    {user?.name ||
+                      "Professional Technician"}
+                  </h1>
 
-                    Available for bookings
-                  </span>
+                  {technician.isAvailable ? (
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                      <span className="size-1.5 rounded-full bg-emerald-500" />
+                      Available
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-3 py-1.5 text-xs font-semibold text-muted-foreground">
+                      <span className="size-1.5 rounded-full bg-muted-foreground" />
+                      Unavailable
+                    </span>
+                  )}
                 </div>
-              )}
+
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Trusted home service professional
+                </p>
+
+                {technician.location && (
+                  <div className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">
+                    <MapPin className="size-4 text-primary" />
+                    {technician.location}
+                  </div>
+                )}
+              </div>
             </div>
 
-            {/* Profile Information */}
-            <div>
-              <div className="flex flex-wrap items-center gap-3">
-                <span className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary">
-                  <ShieldCheck className="size-4" />
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              <div className="rounded-2xl border border-border/60 bg-background p-4 text-center shadow-sm">
+                <BriefcaseBusiness className="mx-auto size-5 text-primary" />
 
-                  Verified Technician
-                </span>
+                <p className="mt-2 text-lg font-bold">
+                  {technician.experience ?? 0}
+                </p>
 
-                <span className="inline-flex items-center gap-2 rounded-full bg-amber-500/10 px-3 py-1.5 text-xs font-semibold text-amber-600 dark:text-amber-400">
-                  <Star className="size-4 fill-current" />
-
-                  {technician.rating.toFixed(1)} Rating
-                </span>
+                <p className="text-xs text-muted-foreground">
+                  Years Experience
+                </p>
               </div>
 
-              <h1 className="mt-5 text-4xl font-bold tracking-[-0.05em] sm:text-5xl lg:text-6xl">
-                {technician.name}
-              </h1>
+              <div className="rounded-2xl border border-border/60 bg-background p-4 text-center shadow-sm">
+                <Star className="mx-auto size-5 fill-current text-amber-500" />
 
-              <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-3 text-sm text-muted-foreground">
-                <span className="inline-flex items-center gap-2">
-                  <MapPin className="size-4" />
+                <p className="mt-2 text-lg font-bold">
+                  {formatRating(rating)}
+                </p>
 
-                  {technician.location}
-                </span>
-
-                <span className="inline-flex items-center gap-2">
-                  <BriefcaseBusiness className="size-4" />
-
-                  {technician.experience}+ years experience
-                </span>
-
-                <span className="inline-flex items-center gap-2">
-                  <ThumbsUp className="size-4" />
-
-                  {technician.completedJobs} jobs completed
-                </span>
+                <p className="text-xs text-muted-foreground">
+                  Rating
+                </p>
               </div>
 
-              <p className="mt-6 max-w-3xl text-base leading-8 text-muted-foreground sm:text-lg">
-                {technician.bio}
-              </p>
+              <div className="col-span-2 rounded-2xl border border-border/60 bg-background p-4 text-center shadow-sm sm:col-span-1">
+                <Wrench className="mx-auto size-5 text-primary" />
 
-              {/* Stats */}
-              <div className="mt-8 grid max-w-2xl grid-cols-2 gap-3 sm:grid-cols-4">
-                <ProfileStat
-                  value={technician.rating.toFixed(1)}
-                  label="Rating"
-                  icon={Star}
-                />
+                <p className="mt-2 text-lg font-bold">
+                  {services.length}
+                </p>
 
-                <ProfileStat
-                  value={String(technician.reviewCount)}
-                  label="Reviews"
-                  icon={ThumbsUp}
-                />
-
-                <ProfileStat
-                  value={`${technician.experience}+`}
-                  label="Years"
-                  icon={Award}
-                />
-
-                <ProfileStat
-                  value={String(technician.completedJobs)}
-                  label="Jobs"
-                  icon={BriefcaseBusiness}
-                />
+                <p className="text-xs text-muted-foreground">
+                  Services
+                </p>
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Main Content */}
-      <section className="py-12 sm:py-16 lg:py-20">
-        <div className="mx-auto w-full max-w-[1600px] px-4 sm:px-6 lg:px-8 2xl:px-10">
-          <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_380px] xl:gap-16">
-            {/* Left Content */}
-            <div>
-              {/* Skills */}
-              <section>
-                <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
-                  Skills & expertise
-                </h2>
+      <section className="py-10 sm:py-14">
+        <div className="mx-auto grid w-full max-w-7xl gap-6 px-4 sm:px-6 lg:grid-cols-[1.5fr_1fr] lg:px-8">
+          <div className="space-y-6">
+            <section className="rounded-3xl border border-border/60 bg-background p-6 shadow-sm sm:p-8">
+              <h2 className="text-xl font-bold">
+                About Technician
+              </h2>
 
-                <p className="mt-3 text-sm leading-6 text-muted-foreground sm:text-base">
-                  Professional skills and services this technician
-                  specializes in.
-                </p>
+              <p className="mt-4 text-sm leading-7 text-muted-foreground">
+                {technician.bio ||
+                  "This technician has not added a biography yet."}
+              </p>
+            </section>
 
-                <div className="mt-6 flex flex-wrap gap-3">
-                  {technician.skills.map((skill) => (
+            <section className="rounded-3xl border border-border/60 bg-background p-6 shadow-sm sm:p-8">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-xl font-bold">
+                    Skills & Expertise
+                  </h2>
+
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Areas this technician specializes in
+                  </p>
+                </div>
+
+                <Wrench className="size-6 text-primary" />
+              </div>
+
+              {skills.length > 0 ? (
+                <div className="mt-6 flex flex-wrap gap-2">
+                  {skills.map((skill, index) => (
                     <span
-                      key={skill}
-                      className="rounded-full border border-border/70 bg-muted/30 px-4 py-2.5 text-sm font-medium transition-colors hover:border-primary/20 hover:bg-primary/5"
+                      key={`${skill}-${index}`}
+                      className="rounded-full border border-border bg-muted/30 px-4 py-2 text-xs font-semibold text-muted-foreground"
                     >
                       {skill}
                     </span>
                   ))}
                 </div>
-              </section>
+              ) : (
+                <p className="mt-6 rounded-2xl bg-muted/30 p-4 text-sm text-muted-foreground">
+                  No skills have been listed yet.
+                </p>
+              )}
+            </section>
 
-              {/* Why Choose */}
-              <section className="mt-14 border-t border-border/60 pt-12">
-                <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
-                  Why choose {technician.name.split(" ")[0]}?
-                </h2>
-
-                <div className="mt-8 grid gap-5 sm:grid-cols-2">
-                  <BenefitCard
-                    icon={ShieldCheck}
-                    title="Verified professional"
-                    description="Identity and professional information are verified to provide a safer booking experience."
-                  />
-
-                  <BenefitCard
-                    icon={Award}
-                    title="Experienced service"
-                    description={`With ${technician.experience}+ years of experience, you can expect reliable and professional work.`}
-                  />
-
-                  <BenefitCard
-                    icon={Star}
-                    title="Highly rated"
-                    description={`Rated ${technician.rating.toFixed(1)} out of 5 based on ${technician.reviewCount} customer reviews.`}
-                  />
-
-                  <BenefitCard
-                    icon={Clock3}
-                    title="Flexible scheduling"
-                    description="Choose a convenient appointment time based on available slots."
-                  />
-                </div>
-              </section>
-
-              {/* Reviews */}
-              <section className="mt-14 border-t border-border/60 pt-12">
-                <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
-                  <div>
-                    <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
-                      Customer reviews
-                    </h2>
-
-                    <p className="mt-3 text-sm text-muted-foreground">
-                      What customers are saying about this technician.
-                    </p>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <Star className="size-5 fill-amber-500 text-amber-500" />
-
-                    <span className="text-xl font-bold">
-                      {technician.rating.toFixed(1)}
-                    </span>
-
-                    <span className="text-sm text-muted-foreground">
-                      ({technician.reviewCount})
-                    </span>
-                  </div>
-                </div>
-
-                <div className="mt-8 space-y-4">
-                  <ReviewCard
-                    name="Nusrat Jahan"
-                    rating={5}
-                    date="2 weeks ago"
-                    text="Very professional and punctual. The service quality was excellent and the entire booking process was smooth."
-                  />
-
-                  <ReviewCard
-                    name="Fahim Rahman"
-                    rating={5}
-                    date="1 month ago"
-                    text="Really happy with the service. The technician was friendly, skilled, and completed everything on time."
-                  />
-
-                  <ReviewCard
-                    name="Mim Akter"
-                    rating={4}
-                    date="2 months ago"
-                    text="Good experience overall. Communication was easy and the work was completed professionally."
-                  />
-                </div>
-              </section>
-            </div>
-
-            {/* Booking Sidebar */}
-            <aside className="lg:sticky lg:top-24 lg:self-start">
-              <div className="overflow-hidden rounded-3xl border border-border/70 bg-background shadow-xl shadow-black/5">
-                {/* Price */}
-                <div className="border-b border-border/60 p-6 sm:p-7">
-                  <div className="flex items-start justify-between gap-5">
-                    <div>
-                      <p className="text-sm text-muted-foreground">
-                        Starting rate
-                      </p>
-
-                      <p className="mt-1 text-3xl font-bold tracking-tight">
-                        ${technician.hourlyRate}
-                        <span className="ml-1 text-sm font-normal text-muted-foreground">
-                          /hour
-                        </span>
-                      </p>
-                    </div>
-
-                    <button
-                      type="button"
-                      aria-label="Save technician"
-                      className="flex size-11 items-center justify-center rounded-full border border-border transition-all duration-300 hover:border-primary/30 hover:bg-primary/5 hover:text-primary"
-                    >
-                      <Heart className="size-5" />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Booking */}
-                <div className="p-6 sm:p-7">
-                  <h2 className="text-lg font-semibold">
-                    Book {technician.name.split(" ")[0]}
+            <section className="rounded-3xl border border-border/60 bg-background p-6 shadow-sm sm:p-8">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-xl font-bold">
+                    Services
                   </h2>
 
-                  <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                    Choose a service and preferred schedule to
-                    request a booking.
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Services provided by this technician
                   </p>
+                </div>
 
-                  {/* Service */}
-                  <div className="mt-6">
-                    <label
-                      htmlFor="service"
-                      className="text-sm font-medium"
+                <Wrench className="size-6 text-primary" />
+              </div>
+
+              {services.length > 0 ? (
+                <div className="mt-6 space-y-3">
+                  {services.map((service) => (
+                    <Link
+                      key={service.id}
+                      href={`/services/${service.id}`}
+                      className="block rounded-2xl border border-border/60 bg-muted/20 p-4 transition-all hover:border-primary/30 hover:bg-primary/5"
                     >
-                      Select service
-                    </label>
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="min-w-0">
+                          <h3 className="truncate text-sm font-bold">
+                            {service.title}
+                          </h3>
 
-                    <select
-                      id="service"
-                      defaultValue=""
-                      className="mt-2 h-12 w-full rounded-xl border border-border bg-background px-3 text-sm outline-none transition-all focus:border-primary focus:ring-4 focus:ring-primary/10"
-                    >
-                      <option value="" disabled>
-                        Choose a service
-                      </option>
+                          {service.description && (
+                            <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                              {service.description}
+                            </p>
+                          )}
+                        </div>
 
-                      {technician.skills.map((skill) => (
-                        <option key={skill} value={skill}>
-                          {skill}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                        {service.price !== undefined && (
+                          <span className="shrink-0 text-sm font-bold text-primary">
+                            ৳{service.price}
+                          </span>
+                        )}
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              ) : (
+                <p className="mt-6 rounded-2xl bg-muted/30 p-4 text-sm text-muted-foreground">
+                  No services are currently listed.
+                </p>
+              )}
+            </section>
+          </div>
 
-                  {/* Date */}
-                  <div className="mt-5">
-                    <label
-                      htmlFor="profile-booking-date"
-                      className="text-sm font-medium"
-                    >
-                      Preferred date
-                    </label>
+          <aside className="h-fit space-y-6 lg:sticky lg:top-24">
+            <section className="rounded-3xl border border-border/60 bg-background p-6 shadow-sm sm:p-8">
+              <h2 className="text-xl font-bold">
+                Contact Information
+              </h2>
 
-                    <div className="relative mt-2">
-                      <CalendarDays className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <div className="mt-6 space-y-4">
+                {user?.email && (
+                  <div className="flex items-start gap-3 rounded-2xl bg-muted/30 p-4">
+                    <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                      <Mail className="size-4" />
+                    </div>
 
-                      <input
-                        id="profile-booking-date"
-                        type="date"
-                        className="h-12 w-full rounded-xl border border-border bg-background pl-10 pr-3 text-sm outline-none transition-all focus:border-primary focus:ring-4 focus:ring-primary/10"
-                      />
+                    <div className="min-w-0">
+                      <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                        Email
+                      </p>
+
+                      <p className="mt-1 break-all text-sm font-semibold">
+                        {user.email}
+                      </p>
                     </div>
                   </div>
+                )}
 
-                  {/* CTA */}
-                  <Link
-                    href={`/services?technician=${technician.id}`}
-                    className="mt-6 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition-all duration-300 hover:-translate-y-0.5 hover:bg-primary/90 hover:shadow-xl hover:shadow-primary/25"
-                  >
-                    Continue Booking
+                {user?.phone && (
+                  <div className="flex items-start gap-3 rounded-2xl bg-muted/30 p-4">
+                    <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                      <Phone className="size-4" />
+                    </div>
 
-                    <ArrowRight className="size-4" />
-                  </Link>
+                    <div>
+                      <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                        Phone
+                      </p>
 
-                  <p className="mt-4 text-center text-xs leading-5 text-muted-foreground">
-                    You won&apos;t be charged until your booking
-                    is accepted.
+                      <p className="mt-1 text-sm font-semibold">
+                        {user.phone}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {technician.location && (
+                  <div className="flex items-start gap-3 rounded-2xl bg-muted/30 p-4">
+                    <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                      <MapPin className="size-4" />
+                    </div>
+
+                    <div>
+                      <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                        Location
+                      </p>
+
+                      <p className="mt-1 text-sm font-semibold">
+                        {technician.location}
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </section>
+
+            <section className="rounded-3xl border border-border/60 bg-background p-6 shadow-sm sm:p-8">
+              <div className="flex items-start gap-3">
+                {technician.isAvailable ? (
+                  <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                ) : (
+                  <XCircle className="mt-0.5 size-5 shrink-0 text-destructive" />
+                )}
+
+                <div>
+                  <p className="text-sm font-bold">
+                    {technician.isAvailable
+                      ? "Currently Available"
+                      : "Currently Unavailable"}
+                  </p>
+
+                  <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                    {technician.isAvailable
+                      ? "This technician is currently available for service requests."
+                      : "This technician is currently not accepting new service requests."}
                   </p>
                 </div>
               </div>
-            </aside>
-          </div>
+            </section>
+
+            {services.length > 0 && technician.isAvailable && (
+              <Link
+                href={`/services/${services[0].id}`}
+                className="inline-flex h-12 w-full items-center justify-center rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition-all hover:bg-primary/90"
+              >
+                Book a Service
+              </Link>
+            )}
+          </aside>
         </div>
       </section>
     </main>
-  );
-}
-
-interface ProfileStatProps {
-  value: string;
-  label: string;
-  icon: React.ComponentType<{
-    className?: string;
-  }>;
-}
-
-function ProfileStat({
-  value,
-  label,
-  icon: Icon,
-}: ProfileStatProps) {
-  return (
-    <div className="rounded-2xl border border-border/60 bg-background p-4">
-      <Icon className="size-4 text-primary" />
-
-      <p className="mt-3 text-xl font-bold tracking-tight">
-        {value}
-      </p>
-
-      <p className="mt-1 text-xs text-muted-foreground">
-        {label}
-      </p>
-    </div>
-  );
-}
-
-interface BenefitCardProps {
-  icon: React.ComponentType<{
-    className?: string;
-  }>;
-  title: string;
-  description: string;
-}
-
-function BenefitCard({
-  icon: Icon,
-  title,
-  description,
-}: BenefitCardProps) {
-  return (
-    <div className="rounded-2xl border border-border/60 bg-muted/20 p-5 transition-all duration-300 hover:-translate-y-1 hover:border-primary/20 hover:bg-primary/5">
-      <div className="flex size-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
-        <Icon className="size-5" />
-      </div>
-
-      <h3 className="mt-5 font-semibold">
-        {title}
-      </h3>
-
-      <p className="mt-2 text-sm leading-6 text-muted-foreground">
-        {description}
-      </p>
-    </div>
-  );
-}
-
-interface ReviewCardProps {
-  name: string;
-  rating: number;
-  date: string;
-  text: string;
-}
-
-function ReviewCard({
-  name,
-  rating,
-  date,
-  text,
-}: ReviewCardProps) {
-  return (
-    <div className="rounded-2xl border border-border/60 bg-background p-5 sm:p-6">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="font-semibold">
-            {name}
-          </p>
-
-          <p className="mt-1 text-xs text-muted-foreground">
-            {date}
-          </p>
-        </div>
-
-        <div className="flex items-center gap-1">
-          {Array.from({ length: 5 }).map((_, index) => (
-            <Star
-              key={index}
-              className={`size-3.5 ${
-                index < rating
-                  ? "fill-amber-500 text-amber-500"
-                  : "text-muted-foreground/30"
-              }`}
-            />
-          ))}
-        </div>
-      </div>
-
-      <p className="mt-4 text-sm leading-7 text-muted-foreground">
-        {text}
-      </p>
-    </div>
   );
 }
