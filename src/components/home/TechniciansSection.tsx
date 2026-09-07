@@ -346,7 +346,7 @@ export default function TechniciansSection() {
             <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-3.5 py-1.5 text-xs font-semibold text-primary">
               <BadgeCheck className="size-3.5" />
 
-              Trusted Professionals
+              Trusted Professional
             </div>
 
             <h2 className="text-balance text-3xl font-bold tracking-[-0.03em] sm:text-4xl lg:text-5xl">
