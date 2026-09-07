@@ -1,6 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import Link from "next/link";
 import {
   AlertCircle,
@@ -11,8 +16,10 @@ import {
   Eye,
   Loader2,
   MapPin,
+  MessageSquare,
   RefreshCw,
   ShieldCheck,
+  Star,
   Trash2,
   User,
   Wrench,
@@ -25,7 +32,7 @@ import api from "@/lib/axios";
 import { useAuth } from "@/context/AuthContext";
 
 /* ============================================================
-   Types
+   TYPES
 ============================================================ */
 
 type UserRole = "CUSTOMER" | "TECHNICIAN" | "ADMIN";
@@ -70,6 +77,15 @@ interface Service {
   category?: Category | null;
 }
 
+interface Review {
+  id: string;
+  bookingId: string;
+  rating: number;
+  comment?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 interface Booking {
   id: string;
   customerId: string;
@@ -87,6 +103,8 @@ interface Booking {
   customer?: Customer | null;
   technician?: Technician | null;
   service?: Service | null;
+
+  review?: Review | null;
 }
 
 interface ApiResponse<T> {
@@ -104,7 +122,7 @@ type BookingAction =
   | "DELETE";
 
 /* ============================================================
-   Status Options
+   STATUS OPTIONS
 ============================================================ */
 
 const statusOptions: {
@@ -146,12 +164,15 @@ const statusOptions: {
 ];
 
 /* ============================================================
-   Main Page
+   PAGE
 ============================================================ */
 
 export default function BookingsPage() {
-  const { user, isLoading: authLoading, isAuthenticated } =
-    useAuth();
+  const {
+    user,
+    isLoading: authLoading,
+    isAuthenticated,
+  } = useAuth();
 
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -169,9 +190,112 @@ export default function BookingsPage() {
   const [updatingBookingId, setUpdatingBookingId] =
     useState<string | null>(null);
 
-  /* ============================================================
-     Load Bookings
-  ============================================================ */
+  /* ==========================================================
+     LOAD REVIEWS FOR CUSTOMER BOOKINGS
+  ========================================================== */
+
+  const attachReviewsToBookings = useCallback(
+    async (bookingList: Booking[]) => {
+      if (!user || user.role !== "CUSTOMER") {
+        return bookingList;
+      }
+
+      const completedBookings = bookingList.filter(
+        (booking) =>
+          booking.status === "COMPLETED",
+      );
+
+      if (!completedBookings.length) {
+        return bookingList;
+      }
+
+      const reviewedBookings =
+        await Promise.all(
+          completedBookings.map(async (booking) => {
+            try {
+              const response =
+                await api.get<
+                  ApiResponse<
+                    Review | Review[]
+                  >
+                >(
+                  `/api/api/reviews?bookingId=${encodeURIComponent(
+                    booking.id,
+                  )}`,
+                );
+
+              const data =
+                response.data?.data;
+
+              let review: Review | null =
+                null;
+
+              if (Array.isArray(data)) {
+                review =
+                  data.find(
+                    (item) =>
+                      item.bookingId ===
+                      booking.id,
+                  ) ?? null;
+              } else if (
+                data &&
+                typeof data === "object"
+              ) {
+                review = data;
+              }
+
+              return {
+                ...booking,
+                review,
+              };
+            } catch (error) {
+              /*
+               * Review endpoint failure should NOT
+               * break the booking page.
+               */
+              console.error(
+                `Failed to load review for booking ${booking.id}`,
+                error,
+              );
+
+              return booking;
+            }
+          }),
+        );
+
+      const reviewMap = new Map<
+        string,
+        Review | null
+      >();
+
+      reviewedBookings.forEach(
+        (booking) => {
+          reviewMap.set(
+            booking.id,
+            booking.review ?? null,
+          );
+        },
+      );
+
+      return bookingList.map(
+        (booking) => ({
+          ...booking,
+          review: reviewMap.has(
+            booking.id,
+          )
+            ? reviewMap.get(
+                booking.id,
+              )
+            : booking.review ?? null,
+        }),
+      );
+    },
+    [user],
+  );
+
+  /* ==========================================================
+     LOAD BOOKINGS
+  ========================================================== */
 
   const loadBookings = useCallback(
     async (refresh = false) => {
@@ -184,27 +308,54 @@ export default function BookingsPage() {
           setIsLoading(true);
         }
 
-        /*
-         * IMPORTANT:
-         * তোমার current axios configuration অনুযায়ী
-         * double /api রাখা হয়েছে।
-         */
+        let endpoint = "";
 
-        const response = await api.get<
-          ApiResponse<Booking[]>
-        >("/api/api/bookings");
+        if (user.role === "CUSTOMER") {
+          endpoint =
+            "/api/api/bookings/my-bookings";
+        } else if (
+          user.role === "TECHNICIAN"
+        ) {
+          endpoint =
+            "/api/api/bookings/technician";
+        } else if (user.role === "ADMIN") {
+          endpoint =
+            "/api/api/bookings/admin";
+        } else {
+          throw new Error(
+            "Invalid user role",
+          );
+        }
 
-        const data = response.data?.data;
+        const response =
+          await api.get<
+            ApiResponse<Booking[]>
+          >(endpoint);
+
+        const data =
+          response.data?.data;
 
         if (!Array.isArray(data)) {
           setBookings([]);
+
           toast.error(
             "Invalid bookings response from backend.",
           );
+
           return;
         }
 
-        setBookings(data);
+        /*
+         * Load customer's reviews after bookings.
+         */
+        const bookingsWithReviews =
+          await attachReviewsToBookings(
+            data,
+          );
+
+        setBookings(
+          bookingsWithReviews,
+        );
       } catch (error: any) {
         console.error(
           "LOAD BOOKINGS ERROR:",
@@ -212,7 +363,9 @@ export default function BookingsPage() {
         );
 
         const message =
-          error?.response?.data?.message ||
+          error?.response?.data
+            ?.message ||
+          error?.message ||
           "Failed to load bookings.";
 
         toast.error(message);
@@ -221,15 +374,19 @@ export default function BookingsPage() {
         setIsRefreshing(false);
       }
     },
-    [user],
+    [user, attachReviewsToBookings],
   );
 
-  /* ============================================================
-     Auth + Initial Load
-  ============================================================ */
+  /* ==========================================================
+     INITIAL LOAD
+  ========================================================== */
 
   useEffect(() => {
-    if (!authLoading && isAuthenticated && user) {
+    if (
+      !authLoading &&
+      isAuthenticated &&
+      user
+    ) {
       loadBookings();
     }
   }, [
@@ -239,19 +396,22 @@ export default function BookingsPage() {
     loadBookings,
   ]);
 
-  /* ============================================================
-     Role
-  ============================================================ */
+  /* ==========================================================
+     ROLE
+  ========================================================== */
 
-  const role = user?.role as UserRole | undefined;
+  const role =
+    user?.role as UserRole | undefined;
 
   const isAdmin = role === "ADMIN";
-  const isTechnician = role === "TECHNICIAN";
-  const isCustomer = role === "CUSTOMER";
+  const isTechnician =
+    role === "TECHNICIAN";
+  const isCustomer =
+    role === "CUSTOMER";
 
-  /* ============================================================
-     Page Content By Role
-  ============================================================ */
+  /* ==========================================================
+     PAGE INFO
+  ========================================================== */
 
   const pageInfo = useMemo(() => {
     if (isAdmin) {
@@ -266,7 +426,8 @@ export default function BookingsPage() {
 
     if (isTechnician) {
       return {
-        eyebrow: "Technician Dashboard",
+        eyebrow:
+          "Technician Dashboard",
         title: "My Bookings",
         description:
           "Review customer requests, accept or decline bookings, and manage your assigned work.",
@@ -278,14 +439,17 @@ export default function BookingsPage() {
       eyebrow: "Customer Dashboard",
       title: "My Bookings",
       description:
-        "Track your service bookings, appointment details, and booking status.",
+        "Track your service bookings, appointment details, and review completed services.",
       icon: CalendarDays,
     };
-  }, [isAdmin, isTechnician]);
+  }, [
+    isAdmin,
+    isTechnician,
+  ]);
 
-  /* ============================================================
-     Filter
-  ============================================================ */
+  /* ==========================================================
+     FILTER
+  ========================================================== */
 
   const filteredBookings = useMemo(() => {
     if (statusFilter === "ALL") {
@@ -296,35 +460,54 @@ export default function BookingsPage() {
       (booking) =>
         booking.status === statusFilter,
     );
-  }, [bookings, statusFilter]);
+  }, [
+    bookings,
+    statusFilter,
+  ]);
 
-  /* ============================================================
-     Statistics
-  ============================================================ */
+  /* ==========================================================
+     STATS
+  ========================================================== */
 
-  const requestedCount = bookings.filter(
-    (booking) =>
-      booking.status === "REQUESTED",
-  ).length;
+  const requestedCount =
+    bookings.filter(
+      (booking) =>
+        booking.status ===
+        "REQUESTED",
+    ).length;
 
-  const acceptedCount = bookings.filter(
-    (booking) =>
-      booking.status === "ACCEPTED",
-  ).length;
+  const acceptedCount =
+    bookings.filter(
+      (booking) =>
+        booking.status ===
+        "ACCEPTED",
+    ).length;
 
-  const inProgressCount = bookings.filter(
-    (booking) =>
-      booking.status === "IN_PROGRESS",
-  ).length;
+  const inProgressCount =
+    bookings.filter(
+      (booking) =>
+        booking.status ===
+        "IN_PROGRESS",
+    ).length;
 
-  const completedCount = bookings.filter(
-    (booking) =>
-      booking.status === "COMPLETED",
-  ).length;
+  const completedCount =
+    bookings.filter(
+      (booking) =>
+        booking.status ===
+        "COMPLETED",
+    ).length;
 
-  /* ============================================================
-     Modal
-  ============================================================ */
+  const reviewedCount =
+    bookings.filter(
+      (booking) =>
+        booking.status ===
+          "COMPLETED" &&
+        Boolean(booking.review),
+    ).length;
+
+  /* ==========================================================
+     ACTION MODAL
+  ========================================================== */
 
   const openActionModal = (
     booking: Booking,
@@ -343,132 +526,120 @@ export default function BookingsPage() {
     setSelectedAction(null);
   };
 
-  /* ============================================================
-     Booking Action
-  ============================================================ */
+  /* ==========================================================
+     BOOKING ACTION
+  ========================================================== */
 
-  const handleBookingAction = async () => {
-    if (
-      !selectedBooking ||
-      !selectedAction ||
-      !role
-    ) {
-      return;
-    }
-
-    const bookingId = selectedBooking.id;
-
-    try {
-      setUpdatingBookingId(bookingId);
-
-      /*
-       * ========================================================
-       * TECHNICIAN
-       * ========================================================
-       */
-
+  const handleBookingAction =
+    async () => {
       if (
-        isTechnician &&
-        (selectedAction === "ACCEPT" ||
-          selectedAction === "DECLINE")
+        !selectedBooking ||
+        !selectedAction ||
+        !role
       ) {
-        const status =
-          selectedAction === "ACCEPT"
-            ? "ACCEPTED"
-            : "DECLINED";
-
-        await api.patch(
-          `/api/api/bookings/${bookingId}/status`,
-          {
-            status,
-          },
-        );
-
-        toast.success(
-          selectedAction === "ACCEPT"
-            ? "Booking accepted successfully."
-            : "Booking declined successfully.",
-        );
-      }
-
-      /*
-       * ========================================================
-       * CUSTOMER
-       * ========================================================
-       */
-
-      else if (
-        isCustomer &&
-        selectedAction === "CANCEL"
-      ) {
-        await api.patch(
-          `/api/api/bookings/${bookingId}/cancel`,
-        );
-
-        toast.success(
-          "Booking cancelled successfully.",
-        );
-      }
-
-      /*
-       * ========================================================
-       * ADMIN
-       * ========================================================
-       */
-
-      else if (
-        isAdmin &&
-        selectedAction === "DELETE"
-      ) {
-        await api.delete(
-          `/api/api/bookings/${bookingId}`,
-        );
-
-        toast.success(
-          "Booking deleted successfully.",
-        );
-      }
-
-      else {
-        toast.error(
-          "You are not allowed to perform this action.",
-        );
-
         return;
       }
 
-      setSelectedBooking(null);
-      setSelectedAction(null);
+      const bookingId =
+        selectedBooking.id;
 
-      await loadBookings(true);
-    } catch (error: any) {
-      console.error(
-        "BOOKING ACTION ERROR:",
-        error,
-      );
+      try {
+        setUpdatingBookingId(
+          bookingId,
+        );
 
-      toast.error(
-        error?.response?.data?.message ||
-          "Failed to perform booking action.",
-      );
-    } finally {
-      setUpdatingBookingId(null);
-    }
-  };
+        if (
+          isTechnician &&
+          (selectedAction ===
+            "ACCEPT" ||
+            selectedAction ===
+              "DECLINE")
+        ) {
+          const status =
+            selectedAction ===
+            "ACCEPT"
+              ? "ACCEPTED"
+              : "DECLINED";
 
-  /* ============================================================
-     Loading Auth
-  ============================================================ */
+          await api.patch(
+            `/api/api/bookings/${bookingId}/status`,
+            {
+              status,
+            },
+          );
+
+          toast.success(
+            selectedAction ===
+              "ACCEPT"
+              ? "Booking accepted successfully."
+              : "Booking declined successfully.",
+          );
+        } else if (
+          isCustomer &&
+          selectedAction === "CANCEL"
+        ) {
+          await api.patch(
+            `/api/api/bookings/${bookingId}/cancel`,
+          );
+
+          toast.success(
+            "Booking cancelled successfully.",
+          );
+        } else if (
+          isAdmin &&
+          selectedAction === "DELETE"
+        ) {
+          await api.delete(
+            `/api/api/bookings/${bookingId}`,
+          );
+
+          toast.success(
+            "Booking deleted successfully.",
+          );
+        } else {
+          toast.error(
+            "You are not allowed to perform this action.",
+          );
+
+          return;
+        }
+
+        setSelectedBooking(null);
+        setSelectedAction(null);
+
+        await loadBookings(true);
+      } catch (error: any) {
+        console.error(
+          "BOOKING ACTION ERROR:",
+          error,
+        );
+
+        toast.error(
+          error?.response?.data
+            ?.message ||
+            "Failed to perform booking action.",
+        );
+      } finally {
+        setUpdatingBookingId(null);
+      }
+    };
+
+  /* ==========================================================
+     AUTH LOADING
+  ========================================================== */
 
   if (authLoading) {
     return <PageLoading />;
   }
 
-  /* ============================================================
-     Not Authenticated
-  ============================================================ */
+  /* ==========================================================
+     NOT AUTHENTICATED
+  ========================================================== */
 
-  if (!isAuthenticated || !user) {
+  if (
+    !isAuthenticated ||
+    !user
+  ) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-background px-6">
         <div className="max-w-md text-center">
@@ -481,7 +652,8 @@ export default function BookingsPage() {
           </h1>
 
           <p className="mt-2 text-sm text-muted-foreground">
-            Please login to access your bookings.
+            Please login to access
+            your bookings.
           </p>
 
           <Link
@@ -495,17 +667,16 @@ export default function BookingsPage() {
     );
   }
 
-  /* ============================================================
-     Main
-  ============================================================ */
+  const HeaderIcon =
+    pageInfo.icon;
 
-  const HeaderIcon = pageInfo.icon;
+  /* ==========================================================
+     RENDER
+  ========================================================== */
 
   return (
     <main className="min-h-screen bg-background">
-      {/* ========================================================
-          HEADER
-      ======================================================== */}
+      {/* HEADER */}
 
       <section className="border-b border-border/60 bg-muted/20">
         <div className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
@@ -563,15 +734,11 @@ export default function BookingsPage() {
         </div>
       </section>
 
-      {/* ========================================================
-          CONTENT
-      ======================================================== */}
+      {/* MAIN */}
 
       <section className="py-10 sm:py-14">
         <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
-          {/* ====================================================
-              ROLE INFO
-          ==================================================== */}
+          {/* ACCESS INFO */}
 
           <div className="mb-8 rounded-2xl border border-primary/10 bg-primary/[0.04] p-4">
             <div className="flex items-start gap-3">
@@ -591,15 +758,13 @@ export default function BookingsPage() {
                     ? "You can monitor all platform bookings and remove bookings when necessary."
                     : isTechnician
                       ? "You can manage booking requests assigned to your technician account."
-                      : "You can view your own bookings and cancel eligible requests."}
+                      : "You can view your own bookings, cancel eligible requests, and review completed services."}
                 </p>
               </div>
             </div>
           </div>
 
-          {/* ====================================================
-              STATS
-          ==================================================== */}
+          {/* STATS */}
 
           <div className="mb-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <StatCard
@@ -639,17 +804,27 @@ export default function BookingsPage() {
             />
 
             <StatCard
-              label="Completed"
-              value={completedCount}
+              label={
+                isCustomer
+                  ? "Reviewed"
+                  : "Completed"
+              }
+              value={
+                isCustomer
+                  ? reviewedCount
+                  : completedCount
+              }
               icon={
-                <CheckCircle2 className="size-5" />
+                isCustomer ? (
+                  <Star className="size-5" />
+                ) : (
+                  <CheckCircle2 className="size-5" />
+                )
               }
             />
           </div>
 
-          {/* ====================================================
-              FILTER
-          ==================================================== */}
+          {/* FILTERS */}
 
           <div className="mb-8 overflow-x-auto rounded-2xl border border-border/60 bg-background p-2 shadow-sm">
             <div className="flex min-w-max gap-2">
@@ -684,9 +859,7 @@ export default function BookingsPage() {
             </div>
           </div>
 
-          {/* ====================================================
-              LOADING
-          ==================================================== */}
+          {/* CONTENT */}
 
           {isLoading ? (
             <div className="flex min-h-[400px] items-center justify-center rounded-3xl border border-border/60 bg-background">
@@ -699,29 +872,24 @@ export default function BookingsPage() {
                   </p>
 
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Fetching booking data from
-                    the backend.
+                    Fetching booking data
+                    from the backend.
                   </p>
                 </div>
               </div>
             </div>
-          ) : filteredBookings.length === 0 ? (
-            /* ==================================================
-               EMPTY
-            =================================================== */
-
+          ) : filteredBookings.length ===
+            0 ? (
             <EmptyState
               filter={statusFilter}
               role={role}
               onReset={() =>
-                setStatusFilter("ALL")
+                setStatusFilter(
+                  "ALL",
+                )
               }
             />
           ) : (
-            /* ==================================================
-               BOOKING GRID
-            =================================================== */
-
             <div className="grid gap-5 lg:grid-cols-2">
               {filteredBookings.map(
                 (booking) => (
@@ -736,6 +904,24 @@ export default function BookingsPage() {
                     onAction={
                       openActionModal
                     }
+                    onReviewUpdated={(
+                      updatedReview,
+                    ) => {
+                      setBookings(
+                        (current) =>
+                          current.map(
+                            (item) =>
+                              item.id ===
+                              booking.id
+                                ? {
+                                    ...item,
+                                    review:
+                                      updatedReview,
+                                  }
+                                : item,
+                          ),
+                      );
+                    }}
                   />
                 ),
               )}
@@ -744,9 +930,7 @@ export default function BookingsPage() {
         </div>
       </section>
 
-      {/* ========================================================
-          ACTION MODAL
-      ======================================================== */}
+      {/* ACTION MODAL */}
 
       {selectedBooking &&
         selectedAction && (
@@ -774,113 +958,7 @@ export default function BookingsPage() {
 }
 
 /* ============================================================
-   Page Loading
-============================================================ */
-
-function PageLoading() {
-  return (
-    <main className="flex min-h-screen items-center justify-center bg-background">
-      <div className="flex flex-col items-center text-center">
-        <div className="flex size-14 items-center justify-center rounded-2xl bg-primary/10">
-          <CalendarDays className="size-6 animate-pulse text-primary" />
-        </div>
-
-        <p className="mt-5 text-sm font-semibold">
-          Loading bookings...
-        </p>
-
-        <p className="mt-1 text-xs text-muted-foreground">
-          Checking your account and bookings.
-        </p>
-      </div>
-    </main>
-  );
-}
-
-/* ============================================================
-   Empty State
-============================================================ */
-
-function EmptyState({
-  filter,
-  role,
-  onReset,
-}: {
-  filter: StatusFilter;
-  role: UserRole;
-  onReset: () => void;
-}) {
-  return (
-    <div className="flex min-h-[420px] flex-col items-center justify-center rounded-3xl border border-dashed border-border bg-background px-6 text-center">
-      <div className="flex size-16 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-        <CalendarDays className="size-8" />
-      </div>
-
-      <h2 className="mt-5 text-xl font-bold">
-        No bookings found
-      </h2>
-
-      <p className="mt-2 max-w-md text-sm leading-6 text-muted-foreground">
-        {filter === "ALL"
-          ? role === "ADMIN"
-            ? "There are no bookings on the platform yet."
-            : role === "TECHNICIAN"
-              ? "You don't have any customer bookings yet."
-              : "You don't have any bookings yet."
-          : `There are no ${filter
-              .toLowerCase()
-              .replace("_", " ")} bookings right now.`}
-      </p>
-
-      {filter !== "ALL" && (
-        <button
-          type="button"
-          onClick={onReset}
-          className="mt-6 inline-flex h-11 items-center justify-center rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
-        >
-          View All Bookings
-        </button>
-      )}
-    </div>
-  );
-}
-
-/* ============================================================
-   Stat Card
-============================================================ */
-
-function StatCard({
-  label,
-  value,
-  icon,
-}: {
-  label: string;
-  value: number;
-  icon: React.ReactNode;
-}) {
-  return (
-    <div className="rounded-2xl border border-border/60 bg-background p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-lg hover:shadow-primary/5">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            {label}
-          </p>
-
-          <p className="mt-2 text-3xl font-bold tracking-tight">
-            {value}
-          </p>
-        </div>
-
-        <div className="flex size-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
-          {icon}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ============================================================
-   Booking Card
+   BOOKING CARD
 ============================================================ */
 
 function BookingCard({
@@ -888,6 +966,7 @@ function BookingCard({
   role,
   isUpdating,
   onAction,
+  onReviewUpdated,
 }: {
   booking: Booking;
   role: UserRole;
@@ -895,6 +974,9 @@ function BookingCard({
   onAction: (
     booking: Booking,
     action: BookingAction,
+  ) => void;
+  onReviewUpdated: (
+    review: Review,
   ) => void;
 }) {
   const price = Number(
@@ -912,9 +994,7 @@ function BookingCard({
 
   return (
     <article className="overflow-hidden rounded-3xl border border-border/60 bg-background shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg">
-      {/* ======================================================
-          HEADER
-      ======================================================= */}
+      {/* CARD HEADER */}
 
       <div className="border-b border-border/60 bg-muted/20 p-5">
         <div className="flex items-start justify-between gap-4">
@@ -928,39 +1008,41 @@ function BookingCard({
             </p>
 
             <h2 className="mt-1 line-clamp-2 text-lg font-bold">
-              {booking.service?.title ||
+              {booking.service
+                ?.title ||
                 "Service Booking"}
             </h2>
           </div>
 
           <StatusBadge
-            status={booking.status}
+            status={
+              booking.status
+            }
           />
         </div>
       </div>
 
-      {/* ======================================================
-          BODY
-      ======================================================= */}
+      {/* CARD BODY */}
 
       <div className="space-y-5 p-5">
-        {/* ====================================================
-            ADMIN
-        ==================================================== */}
+        {/* ADMIN PEOPLE */}
 
         {isAdmin && (
           <div className="grid gap-3 sm:grid-cols-2">
             <PersonBox
               title="Customer"
               name={
-                booking.customer?.name ||
+                booking.customer
+                  ?.name ||
                 "Unknown Customer"
               }
               email={
-                booking.customer?.email
+                booking.customer
+                  ?.email
               }
               image={
-                booking.customer?.image
+                booking.customer
+                  ?.image
               }
               icon={
                 <User className="size-5" />
@@ -970,14 +1052,20 @@ function BookingCard({
             <PersonBox
               title="Technician"
               name={
-                booking.technician?.name ||
+                booking
+                  .technician
+                  ?.name ||
                 "Assigned Technician"
               }
               email={
-                booking.technician?.email
+                booking
+                  .technician
+                  ?.email
               }
               image={
-                booking.technician?.image
+                booking
+                  .technician
+                  ?.image
               }
               icon={
                 <Wrench className="size-5" />
@@ -986,22 +1074,23 @@ function BookingCard({
           </div>
         )}
 
-        {/* ====================================================
-            TECHNICIAN
-        ==================================================== */}
+        {/* TECHNICIAN */}
 
         {isTechnician && (
           <PersonBox
             title="Customer"
             name={
-              booking.customer?.name ||
+              booking.customer
+                ?.name ||
               "Customer"
             }
             email={
-              booking.customer?.email
+              booking.customer
+                ?.email
             }
             image={
-              booking.customer?.image
+              booking.customer
+                ?.image
             }
             icon={
               <User className="size-5" />
@@ -1009,22 +1098,26 @@ function BookingCard({
           />
         )}
 
-        {/* ====================================================
-            CUSTOMER
-        ==================================================== */}
+        {/* CUSTOMER */}
 
         {isCustomer && (
           <PersonBox
             title="Technician"
             name={
-              booking.technician?.name ||
+              booking
+                .technician
+                ?.name ||
               "Assigned Technician"
             }
             email={
-              booking.technician?.email
+              booking
+                .technician
+                ?.email
             }
             image={
-              booking.technician?.image
+              booking
+                .technician
+                ?.image
             }
             icon={
               <Wrench className="size-5" />
@@ -1032,9 +1125,7 @@ function BookingCard({
           />
         )}
 
-        {/* ====================================================
-            BOOKING DETAILS
-        ==================================================== */}
+        {/* INFO */}
 
         <div className="grid gap-3 sm:grid-cols-2">
           <InfoItem
@@ -1062,7 +1153,9 @@ function BookingCard({
               <MapPin className="size-4 text-primary" />
             }
             label="Address"
-            value={booking.address}
+            value={
+              booking.address
+            }
           />
 
           <InfoItem
@@ -1071,16 +1164,18 @@ function BookingCard({
             }
             label="Service Price"
             value={
-              Number.isFinite(price)
-                ? `$${price.toFixed(2)}`
+              Number.isFinite(
+                price,
+              )
+                ? `$${price.toFixed(
+                    2,
+                  )}`
                 : "$0.00"
             }
           />
         </div>
 
-        {/* ====================================================
-            NOTES
-        ==================================================== */}
+        {/* NOTES */}
 
         {booking.notes && (
           <div className="rounded-2xl border border-border/60 bg-muted/20 p-4">
@@ -1096,12 +1191,10 @@ function BookingCard({
           </div>
         )}
 
-        {/* ====================================================
-            CATEGORY
-        ==================================================== */}
+        {/* CATEGORY */}
 
-        {booking.service?.category
-          ?.name && (
+        {booking.service
+          ?.category?.name && (
           <div className="flex items-center justify-between border-t border-border/60 pt-4">
             <span className="text-xs text-muted-foreground">
               Category
@@ -1109,16 +1202,16 @@ function BookingCard({
 
             <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
               {
-                booking.service
-                  .category.name
+                booking
+                  .service
+                  .category
+                  .name
               }
             </span>
           </div>
         )}
 
-        {/* ====================================================
-            TECHNICIAN ACTIONS
-        ==================================================== */}
+        {/* TECHNICIAN ACTIONS */}
 
         {isTechnician &&
           booking.status ===
@@ -1126,7 +1219,9 @@ function BookingCard({
             <div className="grid gap-3 border-t border-border/60 pt-5 sm:grid-cols-2">
               <button
                 type="button"
-                disabled={isUpdating}
+                disabled={
+                  isUpdating
+                }
                 onClick={() =>
                   onAction(
                     booking,
@@ -1141,7 +1236,9 @@ function BookingCard({
 
               <button
                 type="button"
-                disabled={isUpdating}
+                disabled={
+                  isUpdating
+                }
                 onClick={() =>
                   onAction(
                     booking,
@@ -1156,44 +1253,84 @@ function BookingCard({
             </div>
           )}
 
+        {/* CUSTOMER ACTIONS */}
+
+        {isCustomer && (
+          <div className="border-t border-border/60 pt-5">
+            <div className="grid gap-3 sm:grid-cols-2">
+              {(booking.status ===
+                "REQUESTED" ||
+                booking.status ===
+                  "ACCEPTED") && (
+                <button
+                  type="button"
+                  disabled={
+                    isUpdating
+                  }
+                  onClick={() =>
+                    onAction(
+                      booking,
+                      "CANCEL",
+                    )
+                  }
+                  className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-destructive/20 bg-destructive/5 px-4 text-sm font-semibold text-destructive transition-colors hover:bg-destructive/10 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {isUpdating ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <XCircle className="size-4" />
+                  )}
+
+                  {isUpdating
+                    ? "Cancelling..."
+                    : "Cancel Booking"}
+                </button>
+              )}
+
+              {booking.status ===
+                "ACCEPTED" && (
+                <Link
+                  href={`/dashboard/bookings/${booking.id}/payment`}
+                  className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-sm transition-all hover:bg-primary/90 hover:shadow-md"
+                >
+                  <ShieldCheck className="size-4" />
+                  Pay Now
+                </Link>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* ====================================================
-            CUSTOMER CANCEL
+            REVIEW SYSTEM
         ==================================================== */}
 
         {isCustomer &&
-          (
-            booking.status ===
-              "REQUESTED" ||
-            booking.status ===
-              "ACCEPTED"
-          ) && (
-            <div className="border-t border-border/60 pt-5">
-              <button
-                type="button"
-                disabled={isUpdating}
-                onClick={() =>
-                  onAction(
-                    booking,
-                    "CANCEL",
-                  )
-                }
-                className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-destructive/20 bg-destructive/5 px-4 text-sm font-semibold text-destructive transition-colors hover:bg-destructive/10 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <XCircle className="size-4" />
-                Cancel Booking
-              </button>
-            </div>
+          booking.status ===
+            "COMPLETED" && (
+            <ReviewForm
+              bookingId={
+                booking.id
+              }
+              existingReview={
+                booking.review ??
+                null
+              }
+              onReviewUpdated={
+                onReviewUpdated
+              }
+            />
           )}
 
-        {/* ====================================================
-            ADMIN DELETE
-        ==================================================== */}
+        {/* ADMIN DELETE */}
 
         {isAdmin && (
           <div className="border-t border-border/60 pt-5">
             <button
               type="button"
-              disabled={isUpdating}
+              disabled={
+                isUpdating
+              }
               onClick={() =>
                 onAction(
                   booking,
@@ -1208,11 +1345,10 @@ function BookingCard({
           </div>
         )}
 
-        {/* ====================================================
-            SERVICE
-        ==================================================== */}
+        {/* SERVICE */}
 
-        {booking.service?.id && (
+        {booking.service
+          ?.id && (
           <Link
             href={`/services/${booking.service.id}`}
             className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-border bg-background text-xs font-semibold transition-colors hover:bg-muted"
@@ -1227,7 +1363,419 @@ function BookingCard({
 }
 
 /* ============================================================
-   Person Box
+   REVIEW FORM
+============================================================ */
+
+function ReviewForm({
+  bookingId,
+  existingReview,
+  onReviewUpdated,
+}: {
+  bookingId: string;
+  existingReview: Review | null;
+  onReviewUpdated: (
+    review: Review,
+  ) => void;
+}) {
+  const [rating, setRating] =
+    useState(
+      existingReview?.rating ??
+        0,
+    );
+
+  const [comment, setComment] =
+    useState(
+      existingReview?.comment ??
+        "",
+    );
+
+  const [isEditing, setIsEditing] =
+    useState(
+      !existingReview,
+    );
+
+  const [isSubmitting, setIsSubmitting] =
+    useState(false);
+
+  /*
+   * Sync form if existing review
+   * changes after loading.
+   */
+  useEffect(() => {
+    setRating(
+      existingReview?.rating ??
+        0,
+    );
+
+    setComment(
+      existingReview?.comment ??
+        "",
+    );
+
+    setIsEditing(
+      !existingReview,
+    );
+  }, [existingReview]);
+
+  const handleSubmit =
+    async (
+      event: React.FormEvent,
+    ) => {
+      event.preventDefault();
+
+      if (
+        rating < 1 ||
+        rating > 5
+      ) {
+        toast.error(
+          "Please select a rating from 1 to 5 stars.",
+        );
+        return;
+      }
+
+      if (
+        comment.trim().length >
+        1000
+      ) {
+        toast.error(
+          "Review comment cannot exceed 1000 characters.",
+        );
+        return;
+      }
+
+      try {
+        setIsSubmitting(true);
+
+        let response;
+
+        if (existingReview) {
+          /*
+           * UPDATE
+           */
+          response =
+            await api.patch<
+              ApiResponse<Review>
+            >(
+              `/api/api/reviews/${existingReview.id}`,
+              {
+                rating,
+                comment:
+                  comment.trim() ||
+                  undefined,
+              },
+            );
+        } else {
+          /*
+           * CREATE
+           */
+          response =
+            await api.post<
+              ApiResponse<Review>
+            >(
+              "/api/api/reviews",
+              {
+                bookingId,
+                rating,
+                comment:
+                  comment.trim() ||
+                  undefined,
+              },
+            );
+        }
+
+        const updatedReview =
+          response.data?.data;
+
+        if (
+          !updatedReview
+        ) {
+          throw new Error(
+            "Review response is invalid.",
+          );
+        }
+
+        onReviewUpdated(
+          updatedReview,
+        );
+
+        toast.success(
+          existingReview
+            ? "Review updated successfully."
+            : "Review submitted successfully.",
+        );
+
+        setIsEditing(false);
+      } catch (error: any) {
+        console.error(
+          "REVIEW SUBMIT ERROR:",
+          error,
+        );
+
+        const message =
+          error?.response?.data
+            ?.message ||
+          error?.message ||
+          "Failed to submit review.";
+
+        toast.error(message);
+      } finally {
+        setIsSubmitting(
+          false,
+        );
+      }
+    };
+
+  /* ==========================================================
+     EXISTING REVIEW VIEW
+  ========================================================== */
+
+  if (
+    existingReview &&
+    !isEditing
+  ) {
+    return (
+      <div className="rounded-2xl border border-amber-500/20 bg-amber-500/[0.04] p-4">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <div className="flex size-9 items-center justify-center rounded-xl bg-amber-500/10 text-amber-500">
+              <Star className="size-4 fill-current" />
+            </div>
+
+            <div>
+              <p className="text-sm font-bold">
+                Your Review
+              </p>
+
+              <p className="text-xs text-muted-foreground">
+                You reviewed this service
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() =>
+              setIsEditing(true)
+            }
+            className="rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-semibold transition-colors hover:bg-muted"
+          >
+            Edit
+          </button>
+        </div>
+
+        <div className="mt-4 flex items-center gap-1">
+          {Array.from(
+            { length: 5 },
+            (_, index) => {
+              const filled =
+                index <
+                existingReview.rating;
+
+              return (
+                <Star
+                  key={index}
+                  className={`size-5 ${
+                    filled
+                      ? "fill-amber-400 text-amber-400"
+                      : "text-muted-foreground/30"
+                  }`}
+                />
+              );
+            },
+          )}
+
+          <span className="ml-2 text-sm font-bold">
+            {existingReview.rating}/5
+          </span>
+        </div>
+
+        {existingReview.comment && (
+          <div className="mt-4 rounded-xl border border-border/60 bg-background p-3">
+            <p className="text-sm leading-6 text-muted-foreground">
+              {existingReview.comment}
+            </p>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  /* ==========================================================
+     REVIEW EDIT / CREATE FORM
+  ========================================================== */
+
+  return (
+    <form
+      onSubmit={
+        handleSubmit
+      }
+      className="rounded-2xl border border-primary/20 bg-primary/[0.03] p-4"
+    >
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex items-center gap-2">
+          <div className="flex size-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
+            <MessageSquare className="size-4" />
+          </div>
+
+          <div>
+            <p className="text-sm font-bold">
+              {existingReview
+                ? "Edit Your Review"
+                : "Rate Your Technician"}
+            </p>
+
+            <p className="text-xs text-muted-foreground">
+              {existingReview
+                ? "Update your experience"
+                : "How was your service experience?"}
+            </p>
+          </div>
+        </div>
+
+        {existingReview && (
+          <button
+            type="button"
+            onClick={() =>
+              setIsEditing(false)
+            }
+            disabled={
+              isSubmitting
+            }
+            className="flex size-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            <X className="size-4" />
+          </button>
+        )}
+      </div>
+
+      {/* STARS */}
+
+      <div className="mt-5">
+        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          Rating
+        </p>
+
+        <div
+          className="flex items-center gap-1"
+          role="radiogroup"
+          aria-label="Rating"
+        >
+          {Array.from(
+            { length: 5 },
+            (_, index) => {
+              const star =
+                index + 1;
+
+              const active =
+                star <= rating;
+
+              return (
+                <button
+                  key={star}
+                  type="button"
+                  role="radio"
+                  aria-checked={
+                    rating === star
+                  }
+                  aria-label={`${star} star${
+                    star > 1
+                      ? "s"
+                      : ""
+                  }`}
+                  onClick={() =>
+                    setRating(star)
+                  }
+                  disabled={
+                    isSubmitting
+                  }
+                  className="rounded-lg p-1 transition-transform hover:scale-110 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <Star
+                    className={`size-7 transition-colors ${
+                      active
+                        ? "fill-amber-400 text-amber-400"
+                        : "text-muted-foreground/30 hover:text-amber-300"
+                    }`}
+                  />
+                </button>
+              );
+            },
+          )}
+
+          <span className="ml-2 text-sm font-semibold text-muted-foreground">
+            {rating > 0
+              ? `${rating}/5`
+              : "Select rating"}
+          </span>
+        </div>
+      </div>
+
+      {/* COMMENT */}
+
+      <div className="mt-5">
+        <div className="flex items-center justify-between">
+          <label
+            htmlFor={`review-${bookingId}`}
+            className="text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+          >
+            Comment
+          </label>
+
+          <span className="text-[11px] text-muted-foreground">
+            {comment.length}/1000
+          </span>
+        </div>
+
+        <textarea
+          id={`review-${bookingId}`}
+          value={comment}
+          onChange={(event) =>
+            setComment(
+              event.target.value,
+            )
+          }
+          maxLength={1000}
+          rows={4}
+          disabled={
+            isSubmitting
+          }
+          placeholder="Tell us about your experience with the technician..."
+          className="mt-2 w-full resize-none rounded-xl border border-border bg-background px-3 py-3 text-sm outline-none transition-all placeholder:text-muted-foreground/60 focus:border-primary focus:ring-2 focus:ring-primary/10 disabled:cursor-not-allowed disabled:opacity-60"
+        />
+      </div>
+
+      {/* BUTTON */}
+
+      <button
+        type="submit"
+        disabled={
+          isSubmitting ||
+          rating === 0
+        }
+        className="mt-4 inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-sm transition-all hover:bg-primary/90 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        {isSubmitting ? (
+          <>
+            <Loader2 className="size-4 animate-spin" />
+            {existingReview
+              ? "Updating..."
+              : "Submitting..."}
+          </>
+        ) : (
+          <>
+            <Star className="size-4" />
+            {existingReview
+              ? "Update Review"
+              : "Submit Review"}
+          </>
+        )}
+      </button>
+    </form>
+  );
+}
+
+/* ============================================================
+   PERSON BOX
 ============================================================ */
 
 function PersonBox({
@@ -1277,7 +1825,7 @@ function PersonBox({
 }
 
 /* ============================================================
-   Info Item
+   INFO ITEM
 ============================================================ */
 
 function InfoItem({
@@ -1301,7 +1849,8 @@ function InfoItem({
         </p>
 
         <p className="mt-1 truncate text-xs font-semibold">
-          {value || "Not provided"}
+          {value ||
+            "Not provided"}
         </p>
       </div>
     </div>
@@ -1309,7 +1858,7 @@ function InfoItem({
 }
 
 /* ============================================================
-   Status Badge
+   STATUS BADGE
 ============================================================ */
 
 function StatusBadge({
@@ -1380,7 +1929,7 @@ function StatusBadge({
 }
 
 /* ============================================================
-   Action Modal
+   ACTION MODAL
 ============================================================ */
 
 function BookingActionModal({
@@ -1425,15 +1974,16 @@ function BookingActionModal({
           ? "Are you sure you want to cancel this booking?"
           : "This will permanently remove the booking from the platform.";
 
-  const iconClass =
-    isAccept
-      ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-      : "bg-destructive/10 text-destructive";
+  const iconClass = isAccept
+    ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+    : "bg-destructive/10 text-destructive";
 
   return (
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
-      onMouseDown={(event) => {
+      onMouseDown={(
+        event,
+      ) => {
         if (
           event.target ===
             event.currentTarget &&
@@ -1448,7 +1998,7 @@ function BookingActionModal({
         aria-modal="true"
         className="w-full max-w-md overflow-hidden rounded-3xl border border-border/60 bg-background shadow-2xl"
       >
-        {/* Header */}
+        {/* HEADER */}
 
         <div className="flex items-start justify-between gap-4 border-b border-border/60 p-6">
           <div className="flex items-start gap-4">
@@ -1478,7 +2028,9 @@ function BookingActionModal({
           <button
             type="button"
             onClick={onClose}
-            disabled={isLoading}
+            disabled={
+              isLoading
+            }
             aria-label="Close"
             className="flex size-9 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
           >
@@ -1486,7 +2038,7 @@ function BookingActionModal({
           </button>
         </div>
 
-        {/* Body */}
+        {/* BODY */}
 
         <div className="space-y-4 p-6">
           <div className="rounded-2xl border border-border/60 bg-muted/30 p-4">
@@ -1495,7 +2047,8 @@ function BookingActionModal({
             </p>
 
             <p className="mt-2 text-sm font-bold">
-              {booking.service?.title ||
+              {booking.service
+                ?.title ||
                 "Service Booking"}
             </p>
 
@@ -1534,13 +2087,15 @@ function BookingActionModal({
           )}
         </div>
 
-        {/* Footer */}
+        {/* FOOTER */}
 
         <div className="flex flex-col-reverse gap-3 border-t border-border/60 bg-muted/20 p-6 sm:flex-row sm:justify-end">
           <button
             type="button"
             onClick={onClose}
-            disabled={isLoading}
+            disabled={
+              isLoading
+            }
             className="inline-flex h-11 items-center justify-center rounded-xl border border-border bg-background px-5 text-sm font-semibold transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
           >
             Cancel
@@ -1548,8 +2103,12 @@ function BookingActionModal({
 
           <button
             type="button"
-            onClick={onConfirm}
-            disabled={isLoading}
+            onClick={
+              onConfirm
+            }
+            disabled={
+              isLoading
+            }
             className={`inline-flex h-11 items-center justify-center gap-2 rounded-xl px-5 text-sm font-semibold text-white shadow-lg transition-all disabled:cursor-not-allowed disabled:opacity-60 ${
               isAccept
                 ? "bg-emerald-600 shadow-emerald-600/20 hover:bg-emerald-700"
@@ -1590,7 +2149,120 @@ function BookingActionModal({
 }
 
 /* ============================================================
-   Date Helpers
+   EMPTY STATE
+============================================================ */
+
+function EmptyState({
+  filter,
+  role,
+  onReset,
+}: {
+  filter: StatusFilter;
+  role: UserRole;
+  onReset: () => void;
+}) {
+  return (
+    <div className="flex min-h-[420px] flex-col items-center justify-center rounded-3xl border border-dashed border-border bg-background px-6 text-center">
+      <div className="flex size-16 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+        <CalendarDays className="size-8" />
+      </div>
+
+      <h2 className="mt-5 text-xl font-bold">
+        No bookings found
+      </h2>
+
+      <p className="mt-2 max-w-md text-sm leading-6 text-muted-foreground">
+        {filter ===
+        "ALL"
+          ? role === "ADMIN"
+            ? "There are no bookings on the platform yet."
+            : role ===
+                "TECHNICIAN"
+              ? "You don't have any customer bookings yet."
+              : "You don't have any bookings yet."
+          : `There are no ${filter
+              .toLowerCase()
+              .replace(
+                "_",
+                " ",
+              )} bookings right now.`}
+      </p>
+
+      {filter !==
+        "ALL" && (
+        <button
+          type="button"
+          onClick={onReset}
+          className="mt-6 inline-flex h-11 items-center justify-center rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+        >
+          View All Bookings
+        </button>
+      )}
+    </div>
+  );
+}
+
+/* ============================================================
+   STAT CARD
+============================================================ */
+
+function StatCard({
+  label,
+  value,
+  icon,
+}: {
+  label: string;
+  value: number;
+  icon: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-2xl border border-border/60 bg-background p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-lg hover:shadow-primary/5">
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            {label}
+          </p>
+
+          <p className="mt-2 text-3xl font-bold tracking-tight">
+            {value}
+          </p>
+        </div>
+
+        <div className="flex size-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
+          {icon}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   PAGE LOADING
+============================================================ */
+
+function PageLoading() {
+  return (
+    <main className="flex min-h-screen items-center justify-center bg-background">
+      <div className="flex flex-col items-center text-center">
+        <div className="flex size-14 items-center justify-center rounded-2xl bg-primary/10">
+          <CalendarDays className="size-6 animate-pulse text-primary" />
+        </div>
+
+        <p className="mt-5 text-sm font-semibold">
+          Loading bookings...
+        </p>
+
+        <p className="mt-1 text-xs text-muted-foreground">
+          Checking your account
+          and bookings.
+        </p>
+      </div>
+    </main>
+  );
+}
+
+/* ============================================================
+   DATE FORMAT
 ============================================================ */
 
 function formatDate(
@@ -1600,7 +2272,9 @@ function formatDate(
     return "Not provided";
   }
 
-  const date = new Date(value);
+  const date = new Date(
+    value,
+  );
 
   if (
     Number.isNaN(
@@ -1620,6 +2294,10 @@ function formatDate(
   ).format(date);
 }
 
+/* ============================================================
+   TIME FORMAT
+============================================================ */
+
 function formatTime(
   value: string,
 ) {
@@ -1627,7 +2305,9 @@ function formatTime(
     return "Not provided";
   }
 
-  const date = new Date(value);
+  const date = new Date(
+    value,
+  );
 
   if (
     Number.isNaN(

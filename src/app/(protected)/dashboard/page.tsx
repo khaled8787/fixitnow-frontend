@@ -174,11 +174,7 @@ function DashboardSidebar({
                 icon={CalendarCheck2}
               />
 
-              <DashboardNavItem
-                href="/dashboard/profile"
-                label="My Profile"
-                icon={CircleUserRound}
-              />
+              
             </>
           )}
 
@@ -202,11 +198,7 @@ function DashboardSidebar({
                 icon={CalendarCheck2}
               />
 
-              <DashboardNavItem
-                href="/dashboard/profile"
-                label="Technician Profile"
-                icon={CircleUserRound}
-              />
+              
             </>
           )}
 
@@ -279,9 +271,7 @@ function DashboardSidebar({
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/* Sidebar Nav Item                                                           */
-/* -------------------------------------------------------------------------- */
+
 
 function DashboardNavItem({
   href,
@@ -322,9 +312,7 @@ function DashboardNavItem({
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/* Header                                                                     */
-/* -------------------------------------------------------------------------- */
+
 
 function DashboardHeader({
   user,
@@ -367,9 +355,6 @@ function DashboardHeader({
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/* Customer Dashboard                                                        */
-/* -------------------------------------------------------------------------- */
 
 function CustomerDashboard({
   user,
@@ -479,9 +464,7 @@ function CustomerDashboard({
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/* Technician Dashboard                                                      */
-/* -------------------------------------------------------------------------- */
+
 
 function TechnicianDashboard({
   user,
@@ -599,9 +582,7 @@ function TechnicianDashboard({
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/* Admin Dashboard                                                           */
-/* -------------------------------------------------------------------------- */
+
 
 function AdminDashboard({
   user,
@@ -702,9 +683,6 @@ function AdminDashboard({
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/* Dashboard Section                                                         */
-/* -------------------------------------------------------------------------- */
 
 function DashboardSection({
   title,
@@ -732,9 +710,7 @@ function DashboardSection({
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/* Stat Card                                                                 */
-/* -------------------------------------------------------------------------- */
+
 
 function StatCard({
   icon: Icon,
@@ -776,9 +752,7 @@ function StatCard({
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/* Action Card                                                                */
-/* -------------------------------------------------------------------------- */
+
 
 function ActionCard({
   href,
@@ -823,9 +797,7 @@ function ActionCard({
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/* Avatar                                                                     */
-/* -------------------------------------------------------------------------- */
+
 
 function UserAvatar({
   user,

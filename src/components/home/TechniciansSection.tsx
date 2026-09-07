@@ -1,72 +1,321 @@
+
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, BadgeCheck, Sparkles } from "lucide-react";
+import {
+  ArrowRight,
+  BadgeCheck,
+  Loader2,
+  Sparkles,
+} from "lucide-react";
 import { motion } from "framer-motion";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
 
 import Container from "@/components/shared/Container";
 import TechnicianCard, {
   Technician,
 } from "./TechnicianCard";
+import api from "@/lib/axios";
 
-const topTechnicians: Technician[] = [
-  {
-    id: "alex-johnson",
-    name: "Alex Johnson",
+/* ============================================================
+   BACKEND TYPES
+   ============================================================ */
+
+interface BackendUser {
+  id?: string;
+  name?: string | null;
+  email?: string | null;
+  image?: string | null;
+}
+
+interface BackendService {
+  id?: string;
+  title?: string | null;
+  description?: string | null;
+  price?: number | string | null;
+  duration?: number | string | null;
+  image?: string | null;
+  isActive?: boolean;
+}
+
+interface BackendTechnician {
+  id: string;
+
+  user?: BackendUser | null;
+
+  bio?: string | null;
+  experience?: number | null;
+
+  hourlyRate?: number | string | null;
+
+  location?: string | null;
+
+  isAvailable?: boolean;
+
+  averageRating?: number | null;
+  totalReviews?: number | null;
+
+  services?: BackendService[];
+}
+
+interface TechniciansResponse {
+  success?: boolean;
+  message?: string;
+
+  data?:
+    | BackendTechnician[]
+    | {
+        data?: BackendTechnician[];
+      };
+}
+
+/* ============================================================
+   BACKEND ENDPOINT
+   ============================================================ */
+
+/**
+ * app.use("/api", AppRoutes)
+ *
+ * AppRoutes:
+ * /api/technicians
+ *
+ * Final URL:
+ * /api/api/technicians
+ */
+const TECHNICIANS_ENDPOINT =
+  "/api/api/technicians";
+
+/* ============================================================
+   HELPERS
+   ============================================================ */
+
+function getTechniciansFromResponse(
+  response: TechniciansResponse
+): BackendTechnician[] {
+  const data = response?.data;
+
+  if (Array.isArray(data)) {
+    return data;
+  }
+
+  if (Array.isArray(data?.data)) {
+    return data.data;
+  }
+
+  return [];
+}
+
+function formatHourlyRate(
+  value: number | string | null | undefined
+) {
+  const rate = Number(value ?? 0);
+
+  return Number.isFinite(rate) ? rate : 0;
+}
+
+function mapBackendTechnician(
+  technician: BackendTechnician
+): Technician {
+  const user = technician.user;
+
+  const services =
+    technician.services?.filter(
+      (service) => service?.title
+    ) ?? [];
+
+  /**
+   * Active services only
+   */
+  const activeServices = services.filter(
+    (service) => service.isActive !== false
+  );
+
+  /**
+   * Skills come from the technician's
+   * actual backend services.
+   */
+  const skills = activeServices
+    .map((service) => service.title!.trim())
+    .filter(Boolean)
+    .slice(0, 3);
+
+  /**
+   * Specialty:
+   *
+   * First service title if available,
+   * otherwise technician bio.
+   */
+  const specialty =
+    activeServices[0]?.title?.trim() ||
+    technician.bio?.trim() ||
+    "Home Service Professional";
+
+  /**
+   * Starting price:
+   *
+   * Use the lowest active service price.
+   *
+   * If services don't contain a valid price,
+   * fallback to technician hourly rate.
+   */
+  const servicePrices = activeServices
+    .map((service) => Number(service.price))
+    .filter(
+      (price) =>
+        Number.isFinite(price) && price > 0
+    );
+
+  const hourlyRate = formatHourlyRate(
+    technician.hourlyRate
+  );
+
+  const startingPrice =
+    servicePrices.length > 0
+      ? Math.min(...servicePrices)
+      : hourlyRate;
+
+  /**
+   * Backend technician profile itself
+   * represents a verified professional.
+   *
+   * There is no separate "verified" field
+   * in the provided backend schema.
+   */
+  const verified = true;
+
+  return {
+    id: technician.id,
+
+    name:
+      user?.name?.trim() ||
+      "Professional Technician",
+
     image:
-      "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=900&q=80",
-    specialty: "Professional Electrician",
-    location: "New York, NY",
-    rating: 4.9,
-    reviewCount: 142,
-    experience: 8,
-    startingPrice: 45,
-    skills: [
-      "Electrical",
-      "Wiring",
-      "Installation",
-    ],
-    verified: true,
-  },
-  {
-    id: "michael-anderson",
-    name: "Michael Anderson",
-    image:
-      "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=900&q=80",
-    specialty: "Expert Plumber",
-    location: "Brooklyn, NY",
-    rating: 4.8,
-    reviewCount: 118,
-    experience: 10,
-    startingPrice: 40,
-    skills: [
-      "Plumbing",
-      "Pipe Repair",
-      "Water Systems",
-    ],
-    verified: true,
-  },
-  {
-    id: "david-wilson",
-    name: "David Wilson",
-    image:
+      user?.image ||
       "https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=900&q=80",
-    specialty: "Home Maintenance Pro",
-    location: "Queens, NY",
-    rating: 4.9,
-    reviewCount: 96,
-    experience: 7,
-    startingPrice: 35,
-    skills: [
-      "Maintenance",
-      "Carpentry",
-      "Repairs",
-    ],
-    verified: true,
-  },
-];
+
+    specialty,
+
+    location:
+      technician.location?.trim() ||
+      "Location not specified",
+
+    rating:
+      Number(
+        technician.averageRating ?? 0
+      ) || 0,
+
+    reviewCount:
+      Number(
+        technician.totalReviews ?? 0
+      ) || 0,
+
+    experience:
+      Number(
+        technician.experience ?? 0
+      ) || 0,
+
+    startingPrice,
+
+    skills,
+
+    verified,
+  };
+}
+
+/* ============================================================
+   COMPONENT
+   ============================================================ */
 
 export default function TechniciansSection() {
+  const [technicians, setTechnicians] =
+    useState<Technician[]>([]);
+
+  const [isLoading, setIsLoading] =
+    useState(true);
+
+  const [hasError, setHasError] =
+    useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadTechnicians = async () => {
+      try {
+        setIsLoading(true);
+        setHasError(false);
+
+        /**
+         * Backend supports:
+         *
+         * isAvailable=true
+         *
+         * We only show currently available
+         * professionals on the homepage.
+         */
+        const response =
+          await api.get<TechniciansResponse>(
+            TECHNICIANS_ENDPOINT,
+            {
+              params: {
+                isAvailable: true,
+              },
+            }
+          );
+
+        if (!isMounted) return;
+
+        const backendTechnicians =
+          getTechniciansFromResponse(
+            response.data
+          );
+
+        const mappedTechnicians =
+          backendTechnicians
+            .filter(
+              (technician) =>
+                technician &&
+                technician.id
+            )
+            .map(mapBackendTechnician);
+
+        /**
+         * Backend already orders by createdAt desc.
+         *
+         * Homepage only displays top 3.
+         */
+        setTechnicians(
+          mappedTechnicians.slice(0, 3)
+        );
+      } catch (error) {
+        console.error(
+          "TECHNICIANS BACKEND ERROR:",
+          error
+        );
+
+        if (!isMounted) return;
+
+        setTechnicians([]);
+        setHasError(true);
+
+        toast.error(
+          "Failed to load technicians"
+        );
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    void loadTechnicians();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   return (
     <section className="relative overflow-hidden border-y border-border/40 bg-secondary/20 py-24 sm:py-28">
       {/* Decorative Glow */}
@@ -78,10 +327,20 @@ export default function TechniciansSection() {
         {/* Header */}
         <div className="flex flex-col gap-8 md:flex-row md:items-end md:justify-between">
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.5 }}
+            initial={{
+              opacity: 0,
+              y: 20,
+            }}
+            whileInView={{
+              opacity: 1,
+              y: 0,
+            }}
+            viewport={{
+              once: true,
+            }}
+            transition={{
+              duration: 0.5,
+            }}
             className="max-w-2xl"
           >
             <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-3.5 py-1.5 text-xs font-semibold text-primary">
@@ -99,15 +358,24 @@ export default function TechniciansSection() {
             </h2>
 
             <p className="mt-5 max-w-xl text-base leading-7 text-muted-foreground">
-              Connect with experienced, verified technicians who
-              are ready to help you get things done right.
+              Connect with experienced, verified
+              technicians who are ready to help
+              you get things done right.
             </p>
           </motion.div>
 
           <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true }}
+            initial={{
+              opacity: 0,
+              x: 20,
+            }}
+            whileInView={{
+              opacity: 1,
+              x: 0,
+            }}
+            viewport={{
+              once: true,
+            }}
             transition={{
               duration: 0.5,
               delay: 0.15,
@@ -124,22 +392,106 @@ export default function TechniciansSection() {
           </motion.div>
         </div>
 
-        {/* Technician Grid */}
-        <div className="mt-12 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {topTechnicians.map((technician, index) => (
-            <TechnicianCard
-              key={technician.id}
-              technician={technician}
-              index={index}
-            />
-          ))}
-        </div>
+        {/* ====================================================
+            LOADING
+           ==================================================== */}
 
-        {/* Bottom Trust Banner */}
+        {isLoading && (
+          <div className="mt-12 flex min-h-60 items-center justify-center">
+            <div className="flex items-center gap-3 text-sm text-muted-foreground">
+              <Loader2 className="size-5 animate-spin text-primary" />
+
+              Loading technicians...
+            </div>
+          </div>
+        )}
+
+        {/* ====================================================
+            ERROR
+           ==================================================== */}
+
+        {!isLoading && hasError && (
+          <div className="mt-12 flex min-h-60 items-center justify-center">
+            <div className="text-center">
+              <p className="text-sm font-medium text-muted-foreground">
+                Unable to load technicians
+                right now.
+              </p>
+
+              <Link
+                href="/technicians"
+                className="mt-3 inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline"
+              >
+                Browse all technicians
+
+                <ArrowRight className="size-4" />
+              </Link>
+            </div>
+          </div>
+        )}
+
+        {/* ====================================================
+            EMPTY
+           ==================================================== */}
+
+        {!isLoading &&
+          !hasError &&
+          technicians.length === 0 && (
+            <div className="mt-12 flex min-h-60 items-center justify-center">
+              <div className="text-center">
+                <p className="text-sm font-medium text-muted-foreground">
+                  No technicians are available
+                  right now.
+                </p>
+
+                <Link
+                  href="/technicians"
+                  className="mt-3 inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline"
+                >
+                  Find a technician
+
+                  <ArrowRight className="size-4" />
+                </Link>
+              </div>
+            </div>
+          )}
+
+        {/* ====================================================
+            TECHNICIAN GRID
+           ==================================================== */}
+
+        {!isLoading &&
+          !hasError &&
+          technicians.length > 0 && (
+            <div className="mt-12 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {technicians.map(
+                (technician, index) => (
+                  <TechnicianCard
+                    key={technician.id}
+                    technician={technician}
+                    index={index}
+                  />
+                )
+              )}
+            </div>
+          )}
+
+        {/* ====================================================
+            BOTTOM TRUST BANNER
+           ==================================================== */}
+
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
+          initial={{
+            opacity: 0,
+            y: 20,
+          }}
+          whileInView={{
+            opacity: 1,
+            y: 0,
+          }}
+          viewport={{
+            once: true,
+          }}
           transition={{
             duration: 0.6,
             delay: 0.2,
@@ -158,7 +510,8 @@ export default function TechniciansSection() {
                 </p>
 
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Explore our complete network of verified professionals.
+                  Explore our complete network of
+                  verified professionals.
                 </p>
               </div>
             </div>

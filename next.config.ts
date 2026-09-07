@@ -1,4 +1,3 @@
-
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
@@ -16,7 +15,18 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: "https",
+        hostname: "media.licdn.com",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "cdn.prod.website-files.com",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
         hostname: "res.cloudinary.com",
+        pathname: "/**",
       },
     ],
   },
