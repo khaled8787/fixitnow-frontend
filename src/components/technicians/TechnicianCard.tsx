@@ -97,7 +97,7 @@ export default function TechnicianCard({
           <div className="flex shrink-0 items-center gap-1 rounded-full bg-amber-500/10 px-2.5 py-1 text-xs font-semibold text-amber-600 dark:text-amber-400">
             <Star className="size-3.5 fill-current" />
 
-            {technician.rating.toFixed(1)}
+            {(technician.rating ?? 0).toFixed(1)}
           </div>
         </div>
 

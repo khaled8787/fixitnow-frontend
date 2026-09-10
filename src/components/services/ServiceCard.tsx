@@ -7,29 +7,24 @@ import {
   Star,
 } from "lucide-react";
 
-import type { ServiceApiResponse } from "@/services/service.service";
+import type { Service } from "@/types/service";
 
 interface ServiceCardProps {
-  service: ServiceApiResponse;
+  service: Service;
 }
 
 export default function ServiceCard({
   service,
 }: ServiceCardProps) {
   const categoryName =
-    typeof service.category === "object" &&
-    service.category !== null
-      ? service.category.name
+    typeof service.category === "string"
+      ? service.category
       : "Service";
 
   const price = Number(service.price ?? 0);
 
   const image =
     service.image ||
-    (typeof service.category === "object" &&
-    service.category !== null
-      ? service.category.image
-      : null) ||
     "/images/service-placeholder.jpg";
 
   return (
@@ -78,7 +73,7 @@ export default function ServiceCard({
               <MapPin className="size-3.5 shrink-0" />
 
               <span className="truncate">
-                {service.technician?.location ||
+                {service.location ||
                   "Available nationwide"}
               </span>
             </div>
@@ -88,7 +83,11 @@ export default function ServiceCard({
           <div className="flex shrink-0 items-center gap-1 rounded-full bg-amber-500/10 px-2.5 py-1 text-xs font-semibold text-amber-600 dark:text-amber-400">
             <Star className="size-3.5 fill-current" />
 
-            <span>New</span>
+            <span>
+              {service.rating > 0
+                ? service.rating.toFixed(1)
+                : "New"}
+            </span>
           </div>
         </div>
 
@@ -111,11 +110,9 @@ export default function ServiceCard({
           </div>
 
           <span className="text-xs text-muted-foreground">
-            {service.technician
-              ? service.technician.isAvailable
-                ? "Available now"
-                : "Currently unavailable"
-              : "Professional service"}
+            {service.location
+  ? "Available now"
+  : "Professional service"}
           </span>
         </div>
       </div>

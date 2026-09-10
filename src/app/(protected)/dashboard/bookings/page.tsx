@@ -882,7 +882,7 @@ export default function BookingsPage() {
             0 ? (
             <EmptyState
               filter={statusFilter}
-              role={role}
+              role={role!}
               onReset={() =>
                 setStatusFilter(
                   "ALL",
@@ -896,7 +896,7 @@ export default function BookingsPage() {
                   <BookingCard
                     key={booking.id}
                     booking={booking}
-                    role={role}
+                    role={role!}
                     isUpdating={
                       updatingBookingId ===
                       booking.id

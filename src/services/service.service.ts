@@ -1,3 +1,4 @@
+
 import api from "@/lib/axios";
 
 export interface ServiceApiCategory {
@@ -16,6 +17,10 @@ export interface ServiceApiTechnician {
   location: string;
   isAvailable: boolean;
 
+  // Optional technician rating data
+  averageRating?: string | number | null;
+  totalReviews?: string | number | null;
+
   user?: {
     id: string;
     name: string;
@@ -31,21 +36,20 @@ export interface ServiceApiResponse {
   description?: string | null;
 
   price: string | number;
-
+  image?: string | null;
   duration: number;
 
   isActive?: boolean;
 
   categoryId: string;
 
-  technicianId?: string;
+  technicianId?: string | null;
 
-  category?: ServiceApiCategory;
+  category?: ServiceApiCategory | null;
 
-  technician?: ServiceApiTechnician;
+  technician?: ServiceApiTechnician | null;
 
   createdAt?: string;
-
   updatedAt?: string;
 }
 

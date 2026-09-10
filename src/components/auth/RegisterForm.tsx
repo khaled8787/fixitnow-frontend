@@ -59,14 +59,16 @@ const router = useRouter();
   watch,
   formState: { errors, isSubmitting },
 } = useForm<RegisterFormValues>({
-  defaultValues: {
-    name: "",
-    email: "",
-    phone: "",
-    password: "",
-    image: "",
-    role: "CUSTOMER",
-  },
+
+defaultValues: {
+  name: "",
+  email: "",
+  phone: "",
+  password: "",
+  confirmPassword: "",
+  role: "CUSTOMER",
+},
+
 });
 
   const selectedRole = watch("role");

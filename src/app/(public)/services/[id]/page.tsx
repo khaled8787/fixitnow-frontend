@@ -43,21 +43,6 @@ import {
 
 import type { Service } from "@/types/service";
 
-/* ============================================================
-   API ENDPOINTS
-
-   IMPORTANT:
-   app.ts:
-   app.use("/api", AppRoutes)
-
-   AppRoutes:
-   /api/bookings
-   /api/reviews
-
-   Therefore final URLs are:
-   /api/api/bookings/...
-   /api/api/reviews/...
-============================================================ */
 
 const BOOKINGS_ENDPOINT =
   "/api/api/bookings/my-bookings";
@@ -65,9 +50,6 @@ const BOOKINGS_ENDPOINT =
 const REVIEWS_ENDPOINT =
   "/api/api/reviews";
 
-/* ============================================================
-   TYPES
-============================================================ */
 
 interface Booking {
   id: string;
@@ -147,6 +129,7 @@ interface ReviewFormState {
   bookingId: string;
   rating: number;
   comment: string;
+  
 }
 
 /* ============================================================
@@ -159,7 +142,7 @@ function mapService(
   return {
     id: service.id,
     title: service.title,
-
+    
     description:
       service.description ??
       "Professional and reliable service from a trusted FixItNow technician.",

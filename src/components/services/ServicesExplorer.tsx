@@ -102,10 +102,7 @@ function mapService(service: ServiceApiResponse): Service {
     rating: 0,
     reviewCount: 0,
 
-    technicianId:
-      service.technicianId ??
-      service.technician?.id ??
-      "",
+    
   };
 }
 

@@ -15,6 +15,13 @@ export interface Technician {
 
   isAvailable: boolean;
 
+  /**
+   * Technician rating information
+   */
+  rating?: number;
+  reviewCount?: number;
+  completedJobs?: number;
+
   services?: {
     id: string;
     title?: string;

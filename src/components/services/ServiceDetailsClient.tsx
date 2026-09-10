@@ -223,6 +223,10 @@ function ReviewsSection({
       setLoading(true);
       setError(false);
 
+      if (!technician) {
+  return;
+}
+
       const result = await getReviewsByTechnician(
         technician.id,
       );
@@ -833,8 +837,8 @@ export default function ServiceDetailsClient({
          */
 
         const serviceTechnicians =
-          mappedTechnicians.filter(
-            (technician) => {
+  mappedTechnicians.filter(
+    (technician: Technician) => {
               /*
                * If technician has service data,
                * match service ID.
@@ -882,11 +886,10 @@ export default function ServiceDetailsClient({
             }
 
             const exists =
-              serviceTechnicians.some(
-                (technician) =>
-                  technician.id ===
-                  currentId,
-              );
+  serviceTechnicians.some(
+    (technician: Technician) =>
+      technician.id === currentId,
+  );
 
             return exists
               ? currentId

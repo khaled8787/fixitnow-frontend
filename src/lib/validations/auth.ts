@@ -1,3 +1,4 @@
+
 import { z } from "zod";
 
 export const loginSchema = z.object({
@@ -17,7 +18,6 @@ export type LoginFormValues = z.infer<
   typeof loginSchema
 >;
 
-
 export const registerSchema = z
   .object({
     name: z
@@ -35,24 +35,43 @@ export const registerSchema = z
     phone: z
       .string()
       .trim()
-      .min(11, "Phone number must be at least 11 characters")
-      .max(15, "Phone number cannot exceed 15 characters"),
+      .min(
+        11,
+        "Phone number must be at least 11 characters",
+      )
+      .max(
+        15,
+        "Phone number cannot exceed 15 characters",
+      ),
 
     password: z
       .string()
-      .min(6, "Password must be at least 6 characters")
-      .max(100, "Password cannot exceed 100 characters"),
+      .min(
+        6,
+        "Password must be at least 6 characters",
+      )
+      .max(
+        100,
+        "Password cannot exceed 100 characters",
+      ),
 
     confirmPassword: z
       .string()
       .min(1, "Please confirm your password"),
+
+    image: z
+      .string()
+      .url("Please provide a valid image URL")
+      .or(z.literal(""))
+      .optional(),
 
     role: z.enum(["CUSTOMER", "TECHNICIAN"], {
       message: "Please select an account type",
     }),
   })
   .refine(
-    (data) => data.password === data.confirmPassword,
+    (data) =>
+      data.password === data.confirmPassword,
     {
       message: "Passwords do not match",
       path: ["confirmPassword"],
