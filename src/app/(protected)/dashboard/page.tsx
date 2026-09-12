@@ -173,8 +173,6 @@ function DashboardSidebar({
                 label="My Bookings"
                 icon={CalendarCheck2}
               />
-
-              
             </>
           )}
 
@@ -197,8 +195,6 @@ function DashboardSidebar({
                 label="Bookings"
                 icon={CalendarCheck2}
               />
-
-              
             </>
           )}
 
@@ -216,8 +212,9 @@ function DashboardSidebar({
                 icon={FolderKanban}
               />
 
+              {/* Admin Service Management */}
               <DashboardNavItem
-                href="/dashboard/services"
+                href="/dashboard/admin/services"
                 label="Services"
                 icon={BriefcaseBusiness}
               />
@@ -271,8 +268,6 @@ function DashboardSidebar({
   );
 }
 
-
-
 function DashboardNavItem({
   href,
   label,
@@ -312,7 +307,9 @@ function DashboardNavItem({
   );
 }
 
-
+/* -------------------------------------------------------------------------- */
+/* Dashboard Header                                                           */
+/* -------------------------------------------------------------------------- */
 
 function DashboardHeader({
   user,
@@ -355,6 +352,9 @@ function DashboardHeader({
   );
 }
 
+/* -------------------------------------------------------------------------- */
+/* Customer Dashboard                                                         */
+/* -------------------------------------------------------------------------- */
 
 function CustomerDashboard({
   user,
@@ -401,7 +401,6 @@ function CustomerDashboard({
         </div>
       </section>
 
-      {/* Stats */}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           icon={CalendarCheck2}
@@ -427,7 +426,11 @@ function CustomerDashboard({
         <StatCard
           icon={CircleUserRound}
           label="Account"
-          value={user.status === "BANNED" ? "Banned" : "Active"}
+          value={
+            user.status === "BANNED"
+              ? "Banned"
+              : "Active"
+          }
           description="Current account status"
         />
       </div>
@@ -464,7 +467,9 @@ function CustomerDashboard({
   );
 }
 
-
+/* -------------------------------------------------------------------------- */
+/* Technician Dashboard                                                       */
+/* -------------------------------------------------------------------------- */
 
 function TechnicianDashboard({
   user,
@@ -511,7 +516,6 @@ function TechnicianDashboard({
         </div>
       </section>
 
-      {/* Stats */}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           icon={BriefcaseBusiness}
@@ -537,7 +541,11 @@ function TechnicianDashboard({
         <StatCard
           icon={ShieldCheck}
           label="Account"
-          value={user.status === "BANNED" ? "Banned" : "Active"}
+          value={
+            user.status === "BANNED"
+              ? "Banned"
+              : "Active"
+          }
           description="Current account status"
         />
       </div>
@@ -582,7 +590,9 @@ function TechnicianDashboard({
   );
 }
 
-
+/* -------------------------------------------------------------------------- */
+/* Admin Dashboard                                                            */
+/* -------------------------------------------------------------------------- */
 
 function AdminDashboard({
   user,
@@ -664,8 +674,9 @@ function AdminDashboard({
             highlight
           />
 
+          {/* Admin Service Management */}
           <ActionCard
-            href="/dashboard/services"
+            href="/dashboard/admin/services"
             icon={BriefcaseBusiness}
             title="Services"
             description="Review and manage platform services."
@@ -683,6 +694,9 @@ function AdminDashboard({
   );
 }
 
+/* -------------------------------------------------------------------------- */
+/* Dashboard Section                                                          */
+/* -------------------------------------------------------------------------- */
 
 function DashboardSection({
   title,
@@ -710,7 +724,9 @@ function DashboardSection({
   );
 }
 
-
+/* -------------------------------------------------------------------------- */
+/* Stat Card                                                                  */
+/* -------------------------------------------------------------------------- */
 
 function StatCard({
   icon: Icon,
@@ -752,7 +768,9 @@ function StatCard({
   );
 }
 
-
+/* -------------------------------------------------------------------------- */
+/* Action Card                                                                */
+/* -------------------------------------------------------------------------- */
 
 function ActionCard({
   href,
@@ -797,7 +815,9 @@ function ActionCard({
   );
 }
 
-
+/* -------------------------------------------------------------------------- */
+/* User Avatar                                                                */
+/* -------------------------------------------------------------------------- */
 
 function UserAvatar({
   user,

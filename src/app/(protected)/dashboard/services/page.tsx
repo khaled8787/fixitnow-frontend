@@ -1,8 +1,8 @@
-
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   AlertCircle,
   ArrowLeft,
@@ -17,10 +17,12 @@ import {
   Wrench,
   X,
   AlertTriangle,
+  ShieldAlert,
 } from "lucide-react";
 import { toast } from "sonner";
 
 import api from "@/lib/axios";
+import { useAuth } from "@/context/AuthContext";
 
 interface Category {
   id: string;
@@ -62,17 +64,50 @@ interface ApiResponse<T> {
 }
 
 export default function MyServicesPage() {
+  const router = useRouter();
+  const { user, isLoading: isAuthLoading } = useAuth();
+
   const [services, setServices] = useState<Service[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const [deleteServiceId, setDeleteServiceId] =
-    useState<string | null>(null);
+  const [deleteServiceId, setDeleteServiceId] = useState<string | null>(
+    null,
+  );
 
   const [isDeleting, setIsDeleting] = useState(false);
 
+  /*
+   * ------------------------------------------------------------
+   * Technician Access Guard
+   * ------------------------------------------------------------
+   */
+  useEffect(() => {
+    if (isAuthLoading) return;
+
+    if (!user) {
+      toast.error("Please login to access your services.");
+      router.replace("/login");
+      return;
+    }
+
+    if (user.role !== "TECHNICIAN") {
+      toast.error("You are not authorized to access this page.");
+      router.replace("/dashboard");
+    }
+  }, [user, isAuthLoading, router]);
+
+  /*
+   * ------------------------------------------------------------
+   * Load Technician Services
+   * ------------------------------------------------------------
+   */
   const loadServices = useCallback(
     async (showRefreshLoader = false) => {
+      if (!user || user.role !== "TECHNICIAN") {
+        return;
+      }
+
       try {
         if (showRefreshLoader) {
           setIsRefreshing(true);
@@ -80,23 +115,32 @@ export default function MyServicesPage() {
           setIsLoading(true);
         }
 
-        const response = await api.get<
-          ApiResponse<Service[]>
-        >("/api/api/services");
+        const response = await api.get<ApiResponse<Service[]>>(
+          "/api/api/services",
+        );
 
         const data = response.data?.data;
 
         if (!Array.isArray(data)) {
           setServices([]);
 
-          toast.error(
-            "Invalid services response from the backend.",
-          );
+          toast.error("Invalid services response from the backend.");
 
           return;
         }
 
-        setServices(data);
+        /*
+         * Backend returns services.
+         * Keep only services belonging to the logged-in technician.
+         *
+         * This prevents another technician's services from appearing
+         * on the My Services page.
+         */
+        const technicianServices = data.filter(
+          (service) => service.technicianId === user.id,
+        );
+
+        setServices(technicianServices);
       } catch (error: any) {
         console.error("LOAD SERVICES ERROR:", error);
 
@@ -109,16 +153,18 @@ export default function MyServicesPage() {
         setIsRefreshing(false);
       }
     },
-    [],
+    [user],
   );
 
   useEffect(() => {
-    loadServices();
-  }, [loadServices]);
+    if (!isAuthLoading && user?.role === "TECHNICIAN") {
+      loadServices();
+    }
+  }, [isAuthLoading, user, loadServices]);
 
   /*
    * ------------------------------------------------------------
-   * Confirmed Delete
+   * Delete Service
    * ------------------------------------------------------------
    */
   const handleDelete = async () => {
@@ -129,22 +175,15 @@ export default function MyServicesPage() {
     try {
       setIsDeleting(true);
 
-      await api.delete(
-        `/api/api/services/${deleteServiceId}`,
-      );
+      await api.delete(`/api/api/services/${deleteServiceId}`);
 
-      toast.success(
-        "Service deleted successfully.",
-      );
+      toast.success("Service deleted successfully.");
 
       setDeleteServiceId(null);
 
       await loadServices();
     } catch (error: any) {
-      console.error(
-        "DELETE SERVICE ERROR:",
-        error,
-      );
+      console.error("DELETE SERVICE ERROR:", error);
 
       toast.error(
         error?.response?.data?.message ||
@@ -154,6 +193,66 @@ export default function MyServicesPage() {
       setIsDeleting(false);
     }
   };
+
+  /*
+   * ------------------------------------------------------------
+   * Auth Loading
+   * ------------------------------------------------------------
+   */
+  if (isAuthLoading || !user) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-background px-4">
+        <div className="flex flex-col items-center gap-4 text-center">
+          <div className="flex size-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+            <Loader2 className="size-7 animate-spin" />
+          </div>
+
+          <div>
+            <p className="text-sm font-semibold">
+              Checking your access...
+            </p>
+
+            <p className="mt-1 text-xs text-muted-foreground">
+              Please wait while we verify your account.
+            </p>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  /*
+   * ------------------------------------------------------------
+   * Unauthorized State
+   * ------------------------------------------------------------
+   */
+  if (user.role !== "TECHNICIAN") {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-background px-4">
+        <div className="w-full max-w-md rounded-3xl border border-border/60 bg-background p-8 text-center shadow-xl">
+          <div className="mx-auto flex size-16 items-center justify-center rounded-2xl bg-destructive/10 text-destructive">
+            <ShieldAlert className="size-8" />
+          </div>
+
+          <h1 className="mt-5 text-2xl font-bold">
+            Access Restricted
+          </h1>
+
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">
+            This page is only available for technicians.
+          </p>
+
+          <Link
+            href="/dashboard"
+            className="mt-6 inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition-all hover:bg-primary/90"
+          >
+            <ArrowLeft className="size-4" />
+            Back to Dashboard
+          </Link>
+        </div>
+      </main>
+    );
+  }
 
   const activeCount = services.filter(
     (service) => service.isActive,
@@ -211,9 +310,7 @@ export default function MyServicesPage() {
               >
                 <RefreshCw
                   className={`size-4 ${
-                    isRefreshing
-                      ? "animate-spin"
-                      : ""
+                    isRefreshing ? "animate-spin" : ""
                   }`}
                 />
 
@@ -240,25 +337,19 @@ export default function MyServicesPage() {
             <StatCard
               label="Total Services"
               value={services.length}
-              icon={
-                <Wrench className="size-5" />
-              }
+              icon={<Wrench className="size-5" />}
             />
 
             <StatCard
               label="Active Services"
               value={activeCount}
-              icon={
-                <Eye className="size-5" />
-              }
+              icon={<Eye className="size-5" />}
             />
 
             <StatCard
               label="Inactive Services"
               value={inactiveCount}
-              icon={
-                <AlertCircle className="size-5" />
-              }
+              icon={<AlertCircle className="size-5" />}
             />
           </div>
 
@@ -317,9 +408,7 @@ export default function MyServicesPage() {
                     deleteServiceId === service.id
                   }
                   onDelete={() =>
-                    setDeleteServiceId(
-                      service.id,
-                    )
+                    setDeleteServiceId(service.id)
                   }
                 />
               ))}
@@ -508,9 +597,7 @@ function ServiceCard({
                 : "bg-muted text-muted-foreground"
             }`}
           >
-            {service.isActive
-              ? "Active"
-              : "Inactive"}
+            {service.isActive ? "Active" : "Inactive"}
           </span>
         </div>
       </div>
