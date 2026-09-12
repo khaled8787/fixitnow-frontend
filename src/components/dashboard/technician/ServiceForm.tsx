@@ -1,3 +1,4 @@
+
 "use client";
 
 import {
@@ -6,12 +7,13 @@ import {
   useState,
 } from "react";
 
-import {
-  Loader2,
-  X,
-} from "lucide-react";
+import { Loader2, X } from "lucide-react";
 
 import { toast } from "sonner";
+
+import { useRouter } from "next/navigation";
+
+import { useAuth } from "@/context/AuthContext";
 
 import {
   createService,
@@ -35,6 +37,10 @@ export default function ServiceForm({
   onClose,
   onSuccess,
 }: ServiceFormProps) {
+  const router = useRouter();
+
+  const { user, isLoading: isAuthLoading } = useAuth();
+
   const isEditing = Boolean(service);
 
   const [categories, setCategories] =
@@ -52,44 +58,58 @@ export default function ServiceForm({
   const [description, setDescription] =
     useState(service?.description ?? "");
 
-  const [price, setPrice] =
-    useState(
-      service?.price !== undefined
-        ? String(service.price)
-        : "",
-    );
+  const [price, setPrice] = useState(
+    service?.price !== undefined
+      ? String(service.price)
+      : "",
+  );
 
-  const [duration, setDuration] =
-    useState(
-      service?.duration !== undefined
-        ? String(service.duration)
-        : "",
-    );
+  const [duration, setDuration] = useState(
+    service?.duration !== undefined
+      ? String(service.duration)
+      : "",
+  );
 
-  const [isActive, setIsActive] =
-    useState(
-      service?.isActive !== false,
-    );
+  const [isActive, setIsActive] = useState(
+    service?.isActive !== false,
+  );
 
   const [isSubmitting, setIsSubmitting] =
     useState(false);
 
   /*
+   * Technician-only access
+   */
+  useEffect(() => {
+    if (isAuthLoading) return;
+
+    if (!user) {
+      router.replace("/login");
+      return;
+    }
+
+    if (user.role !== "TECHNICIAN") {
+      router.replace("/dashboard");
+    }
+  }, [user, isAuthLoading, router]);
+
+  /*
    * Load categories
    */
   useEffect(() => {
+    if (isAuthLoading || !user || user.role !== "TECHNICIAN") {
+      return;
+    }
+
     let mounted = true;
 
     async function loadCategories() {
       try {
         setIsCategoriesLoading(true);
 
-        const response =
-          await getCategories();
+        const response = await getCategories();
 
-        const data = Array.isArray(
-          response?.data,
-        )
+        const data = Array.isArray(response?.data)
           ? response.data
           : [];
 
@@ -120,7 +140,7 @@ export default function ServiceForm({
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [user, isAuthLoading]);
 
   /*
    * Submit
@@ -129,6 +149,13 @@ export default function ServiceForm({
     event: FormEvent<HTMLFormElement>,
   ) {
     event.preventDefault();
+
+    if (user?.role !== "TECHNICIAN") {
+      toast.error(
+        "Only technicians can create or update services.",
+      );
+      return;
+    }
 
     if (!categoryId) {
       toast.error(
@@ -177,8 +204,7 @@ export default function ServiceForm({
       return;
     }
 
-    const numericDuration =
-      Number(duration);
+    const numericDuration = Number(duration);
 
     if (
       !Number.isInteger(numericDuration) ||
@@ -257,6 +283,21 @@ export default function ServiceForm({
     } finally {
       setIsSubmitting(false);
     }
+  }
+
+  /*
+   * Auth loading / unauthorized users
+   */
+  if (
+    isAuthLoading ||
+    !user ||
+    user.role !== "TECHNICIAN"
+  ) {
+    return (
+      <div className="flex min-h-[300px] items-center justify-center">
+        <Loader2 className="size-6 animate-spin text-primary" />
+      </div>
+    );
   }
 
   return (

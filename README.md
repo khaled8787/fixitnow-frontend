@@ -4,10 +4,10 @@ FixItNow is a modern home service marketplace where customers can discover servi
 
 ## Live Links
 
-- Frontend: YOUR_FRONTEND_LIVE_URL
-- Backend API: YOUR_BACKEND_API_URL
-- GitHub Repository: YOUR_GITHUB_REPOSITORY_URL
-- Demo Video: YOUR_DEMO_VIDEO_URL
+ Frontend: https://fixitnow-frontend-nxmxv36e7-khaled-mahmuds-projects-f3e2de07.vercel.app
+ Backend API: https://fixitnow-backend-gz17.onrender.com
+ GitHub Repository: https://github.com/khaled8787/fixitnow-frontend
+ Demo Video: https://drive.google.com/file/d/1K4TLvv30sJ9ylnP8vIKyqMMn3Hmy1Tkz/view?usp=sharing
 
 ## Project Overview
 
@@ -21,110 +21,110 @@ The frontend is built with Next.js and communicates with a dedicated REST API ba
 
 Customers can:
 
-- Register and login
-- Browse available services
-- Search and filter services
-- View technician profiles
-- Create service bookings
-- View booking history
-- Cancel eligible bookings
-- Make secure Stripe payments
-- Submit reviews for eligible paid bookings
-- Edit and delete their reviews
-- Manage their dashboard
+ Register and login
+ Browse available services
+ Search and filter services
+ View technician profiles
+ Create service bookings
+ View booking history
+ Cancel eligible bookings
+ Make secure Stripe payments
+ Submit reviews for eligible paid bookings
+ Edit and delete their reviews
+ Manage their dashboard
 
 ### Technician
 
 Technicians can:
 
-- Login securely
-- View their dashboard
-- Manage their profile
-- Manage service-related information
-- View assigned bookings
-- Update booking statuses
-- Manage their availability
-- Monitor their service activities
+ Login securely
+ View their dashboard
+ Manage their profile
+ Manage service-related information
+ View assigned bookings
+ Update booking statuses
+ Manage their availability
+ Monitor their service activities
 
 ### Admin
 
 Admins can:
 
-- Access the admin dashboard
-- Manage users
-- Ban or unban users
-- Monitor bookings
-- Manage service categories
-- Monitor overall platform activity
+ Access the admin dashboard
+ Manage users
+ Ban or unban users
+ Monitor bookings
+ Manage service categories
+ Monitor overall platform activity
 
 ## Key Features
 
-- Modern responsive user interface
-- Next.js App Router architecture
-- TypeScript based development
-- JWT authentication
-- Role-based authorization
-- Protected routes
-- Customer, Technician, and Admin dashboards
-- Service search and filtering
-- Technician search and filtering
-- Service details
-- Technician details
-- Complete booking workflow
-- Booking status management
-- Booking cancellation
-- Customer review system
-- Review CRUD operations
-- Stripe payment integration
-- Payment success and cancellation pages
-- API-driven dynamic data
-- Axios API integration
-- TanStack Query for server-state management
-- Form validation
-- Toast notifications
-- Loading states
-- Empty states
-- API error handling
-- Responsive design
-- Animated UI interactions
-- Graceful error pages
+ Modern responsive user interface
+ Next.js App Router architecture
+ TypeScript based development
+ JWT authentication
+ Role-based authorization
+ Protected routes
+ Customer, Technician, and Admin dashboards
+ Service search and filtering
+ Technician search and filtering
+ Service details
+ Technician details
+ Complete booking workflow
+ Booking status management
+ Booking cancellation
+ Customer review system
+ Review CRUD operations
+ Stripe payment integration
+ Payment success and cancellation pages
+ API-driven dynamic data
+ Axios API integration
+ TanStack Query for server-state management
+ Form validation
+ Toast notifications
+ Loading states
+ Empty states
+ API error handling
+ Responsive design
+ Animated UI interactions
+ Graceful error pages
 
 ## Technology Stack
 
 ### Frontend
 
-- Next.js
-- React
-- TypeScript
-- Tailwind CSS
-- Framer Motion
+ Next.js
+ React
+ TypeScript
+ Tailwind CSS
+ Framer Motion
 
 ### State Management and Data Fetching
 
-- TanStack React Query
-- Zustand
-- Axios
+ TanStack React Query
+ Zustand
+ Axios
 
 ### Authentication
 
-- JWT
-- HTTP Authorization headers
-- Role-based route protection
+ JWT
+ HTTP Authorization headers
+ Role-based route protection
 
 ### Payment
 
-- Stripe Checkout
+ Stripe Checkout
 
 ### Validation and Forms
 
-- React Hook Form
-- Zod
+ React Hook Form
+ Zod
 
 ### UI and Utilities
 
-- Lucide React
-- Swiper.js
-- js-cookie
+ Lucide React
+ Swiper.js
+ js-cookie
 
 ## API Integration
 
@@ -132,14 +132,14 @@ The frontend consumes data from the FixItNow backend REST API.
 
 Main API modules include:
 
-- Authentication
-- Services
-- Categories
-- Technicians
-- Bookings
-- Payments
-- Reviews
-- Admin
+ Authentication
+ Services
+ Categories
+ Technicians
+ Bookings
+ Payments
+ Reviews
+ Admin
 
 Detailed API integration documentation is available in:
 
@@ -173,15 +173,14 @@ Detailed API integration documentation is available in:
 Create a `.env.local` file in the project root.
 
 ```env
-NEXT_PUBLIC_API_URL=YOUR_BACKEND_API_URL
+NEXT_PUBLIC_API_URL=https://fixitnow-backend-gz17.onrender.com
 
-Do not commit .env.local or any secret credentials to GitHub.
 
 Installation
 
 Clone the repository:
 
-git clone YOUR_GITHUB_REPOSITORY_URL
+git clone https://github.com/khaled8787/fixitnow-frontend.git
 
 Navigate to the project directory:
 
@@ -197,7 +196,7 @@ Create the environment file:
 
 Add the required environment variables:
 
-NEXT_PUBLIC_API_URL=YOUR_BACKEND_API_URL
+NEXT_PUBLIC_API_URL=https://fixitnow-backend-gz17.onrender.com
 
 Start the development server:
 
@@ -236,23 +235,23 @@ Booking Flow
 The main customer booking flow is:
 
 Browse Services
-↓
+
 Select Service
-↓
+
 Choose Technician
-↓
+
 Select Date and Time
-↓
+
 Enter Address and Notes
-↓
+
 Create Booking
-↓
+
 Booking Confirmation
-↓
+
 Payment
-↓
+
 Stripe Checkout
-↓
+
 Payment Success / Cancel
 Payment Integration
 
@@ -263,17 +262,17 @@ Customers can pay for eligible bookings through Stripe Checkout.
 Payment flow:
 
 Customer Booking
-↓
+
 Pay Now
-↓
+
 Backend Payment API
-↓
+
 Stripe Checkout
-↓
+
 Customer Completes Payment
-↓
+
 Payment Success / Cancel
-↓
+
 Frontend Result Page
 
 Fake or simulated payments are not used.
@@ -394,10 +393,9 @@ Admin Demo Credentials
 
 Use the following credentials for evaluation:
 
-Email: YOUR_ADMIN_EMAIL
-Password: YOUR_ADMIN_PASSWORD
+Email: admin@fixitnow.com
+Password: Admin@12345
 
-Replace the placeholders with the actual working admin credentials before submission.
 
 Demo Video
 
@@ -418,7 +416,7 @@ A technical challenge and its solution
 
 Demo Video:
 
-YOUR_DEMO_VIDEO_URL
+https://drive.google.com/file/d/1K4TLvv30sJ9ylnP8vIKyqMMn3Hmy1Tkz/view?usp=sharing
 
 Deployment
 
